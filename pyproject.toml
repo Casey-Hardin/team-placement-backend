@@ -1,0 +1,20 @@
+[tool.poetry]
+name = "team-placement"
+version = "0.1.0"
+description = "Backend for placing people on teams and defining room assignments."
+authors = ["Casey-Hardin <casey_hardin@goodyear.com>"]
+readme = "README.md"
+
+[tool.poetry.scripts]
+start = "main:start"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+uvicorn = "^0.29.0"
+fastapi = "^0.110.0"
+openpyxl = "^3.1.2"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
