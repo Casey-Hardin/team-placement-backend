@@ -28,12 +28,33 @@ class Person(PersonIdentifier):
     first_time: bool
     age: int | None
     collective: Collective
-    team_number: int | None = None
     preferred_people: list[PersonIdentifier] = []
-    user_preferred_team: list[PersonIdentifier] = []
-    user_separate_team: list[PersonIdentifier] = []
-    user_preferred_room: list[PersonIdentifier] = []
-    user_separate_room: list[PersonIdentifier] = []
+    team: int | None = None
+
+
+class Action(Enum):
+    unite = "unite"
+    separate = "separate"
+
+
+class UserAction(BaseModel):
+    person_1: PersonIdentifier
+    person_2: PersonIdentifier
+    action: Action
+
+
+class Targets(BaseModel):
+    team_size: int
+    collective_new: int
+    collective_newish: int
+    collective_oldish: int
+    collective_old: int
+    size_18: int
+    size_19_20: int
+    size_21_22: int
+    size_23_24: int
+    size_25: int
+    girl_count: int
 
 
 class FileReceipt(BaseModel):

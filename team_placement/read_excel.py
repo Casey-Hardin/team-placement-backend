@@ -1,5 +1,5 @@
 # native imports
-from copy import deepcopy
+from collections import defaultdict
 from datetime import datetime
 from io import BytesIO
 
@@ -9,13 +9,12 @@ from fastapi import UploadFile
 from openpyxl import load_workbook
 
 # external imports
-from .person import Person
+from .objects import Person
 from . import schemas
 
 
-def read_excel(file: UploadFile) -> tuple[list[schemas.Person], str]:
-    people = []
-    message = ""
+def read_excel(file: UploadFile) -> tuple[list[Person], dict[int: list[Person]], str]:
+    people, leaders, message = [], defaultdict(lambda: []), ""
 
     # read the XLSX file
     contents = BytesIO(file.file.read())
@@ -124,9 +123,10 @@ def read_excel(file: UploadFile) -> tuple[list[schemas.Person], str]:
             "first_time": first_time,
             "age": age,
             "collective": collective,
-            "team_number": team_number,
         }))
         people.append(person)
+        if team_number is not None:
+            leaders[team_number].append(person)
 
     # decipher preferred people
     for person in people:
@@ -242,5 +242,4 @@ def read_excel(file: UploadFile) -> tuple[list[schemas.Person], str]:
 
         # assign preferred people
         person.preferred_people = preferred
-    print(message)
-    return people, message
+    return people, leaders, message
