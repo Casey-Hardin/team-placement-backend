@@ -1,9 +1,10 @@
 # native imports
-from copy import deepcopy
+from operator import attrgetter
 from typing import Union
 
 # external imports
 from . import schemas
+from .constants import PRIORITIES
 
 
 class Person(object):
@@ -123,6 +124,10 @@ class Person(object):
         })
 
 
+    def __str__(self):
+        return f"{self._first_name} {self._last_name}"
+
+
 class Cohort(object):
     def __init__(self, people: Person | list[Person] = [], team_number: int | None = None):
         self._people = people
@@ -138,6 +143,10 @@ class Cohort(object):
     @property
     def people(self):
         return self._people
+
+
+    def _set_people(self, people: list[Person]):
+        self._people = people
 
 
     @property
@@ -163,19 +172,26 @@ class Cohort(object):
         self._user_banned_list = people
 
 
-    def append(self, cohort: "Cohort"):
+    def add(self, friend_cohort: "Cohort", cohorts: list["Cohort"] | None = None) -> list["Cohort"] | None:
+        if cohorts is not None:
+            # remove first because attributes change
+            cohorts = [x for x in cohorts if x != friend_cohort]
+
         # add people from the new cohort to this one
-        self._people += cohort.people
+        self._people += friend_cohort.people
 
         # assign the new cohort for all people
-        for person in cohort.people:
-            person.cohort = self
+        for person in friend_cohort.people:
+            if person.cohort != self:
+                person.cohort = self
 
         # assign new team number
-        self._team_number = self._team_number if self._team_number != None else cohort.team_number
+        self._team_number = self._team_number if self._team_number != None else friend_cohort.team_number
 
         # concatenate banned lists
-        self._user_banned_list += cohort.user_banned_list
+        self._user_banned_list += friend_cohort.user_banned_list
+
+        return cohorts
 
 
     @property
@@ -184,75 +200,107 @@ class Cohort(object):
 
 
     @property
-    def count_collective_new(self):
+    def collective_new(self):
         return len([x for x in self._people if x.collective == schemas.Collective.new])
 
 
     @property
-    def count_collective_newish(self):
+    def collective_newish(self):
         return len([x for x in self._people if x.collective == schemas.Collective.newish])
 
 
     @property
-    def count_collective_oldish(self):
+    def collective_oldish(self):
         return len([x for x in self._people if x.collective == schemas.Collective.oldish])
 
 
     @property
-    def count_collective_old(self):
+    def collective_old(self):
         return len([x for x in self._people if x.collective == schemas.Collective.old])
 
 
     @property
-    def count_18(self):
+    def size_18(self):
         return len([x for x in self._people if x.age <= 18])
 
 
     @property
-    def count_19_20(self):
+    def size_19_20(self):
         return len([x for x in self._people if x.age >= 19 and x.age <= 20])
 
 
     @property
-    def count_21_22(self):
+    def size_21_22(self):
         return len([x for x in self._people if x.age >= 21 and x.age <= 22])
 
 
     @property
-    def count_23_24(self):
+    def size_23_24(self):
         return len([x for x in self._people if x.age >= 23 and x.age <= 24])
 
 
     @property
-    def count_25(self):
+    def size_25(self):
         return len([x for x in self._people if x.age >= 25])
 
 
     @property
-    def count_girls(self):
+    def girl_count(self):
         return len([x for x in self._people if x.gender == schemas.Gender.female])
 
 
     def validate(self, targets: schemas.Targets, cohorts: list["Cohort"], test_cohort: Union["Cohort", None] = None):
-        pretend_cohort = deepcopy(self)
+        pretend_metrics = schemas.Targets(
+            **{priority: getattr(self, priority) for priority in PRIORITIES}
+        )
+        people = list(self._people)
+        team_number = self._team_number
+        banned_list = list(self._user_banned_list)
         if test_cohort is not None:
-            pretend_cohort.append(deepcopy(test_cohort))
+            for priority in PRIORITIES:
+                setattr(
+                    pretend_metrics,
+                    priority,
+                    (getattr(pretend_metrics, priority)
+                     + getattr(test_cohort, priority)),
+                )
+            team_number = self._team_number if self._team_number != None else test_cohort.team_number
+            people += test_cohort.people
+            banned_list += test_cohort.user_banned_list
 
-        if pretend_cohort.team_number is None:
-            leader_cohorts = [x for x in cohorts if x.team_number not in [None, 0]]
+        if team_number is None:
+            leader_cohorts = [x for x in cohorts if x.team_number is not None]
             for cohort in leader_cohorts:
+                pretend_cohort = Cohort()
+                pretend_cohort._set_people(people)
+                pretend_cohort.user_banned_list = banned_list
                 if pretend_cohort.validate(targets, cohorts, cohort):
                     return True
             return False
-        return (pretend_cohort.count_collective_new <= targets.collective_new
-            and pretend_cohort.count_collective_newish <= targets.collective_newish
-            and pretend_cohort.count_collective_oldish <= targets.collective_oldish
-            and pretend_cohort.count_collective_old <= targets.collective_old
-            and pretend_cohort.count_18 <= targets.size_18
-            and pretend_cohort.count_19_20 <= targets.size_19_20
-            and pretend_cohort.count_21_22 <= targets.size_21_22
-            and pretend_cohort.count_23_24 <= targets.size_23_24
-            and pretend_cohort.count_25 <= targets.size_25
-            and pretend_cohort.count_girls <= targets.girl_count
-            and pretend_cohort.team_size <= targets.team_size
-        )
+
+        if test_cohort is None:
+            for priority in PRIORITIES:
+                if getattr(pretend_metrics, priority) > getattr(targets, priority):
+                    return False
+            return True
+
+        other_cohorts = [x for x in cohorts if x != test_cohort]
+        for priority in PRIORITIES:
+            valid = getattr(pretend_metrics, priority) <= getattr(targets, priority)
+            min_value = getattr(min(other_cohorts, key=attrgetter(priority)), priority)
+            if valid:
+                other_cohorts = [
+                    x for x in other_cohorts
+                    if getattr(x, priority) <=
+                    getattr(targets, priority)
+                    - getattr(self, priority)
+                ]
+            else:
+                other_cohorts = [x for x in other_cohorts if getattr(x, priority) == min_value]
+            if not valid and getattr(test_cohort, priority) != min_value:
+                return False
+        return True
+
+
+    def to_list(self):
+        return [str(person) for person in self._people]
