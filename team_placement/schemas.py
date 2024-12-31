@@ -1,35 +1,83 @@
 # native imports
 from enum import Enum
+from typing import Literal
 
 # third-party imports
 from pydantic import BaseModel
 
 
-class Gender(Enum):
+class BooleanEnum(str, Enum):
+    yes = "Yes"
+    no = "No"
+
+
+class Gender(str, Enum):
     male = "Male"
     female = "Female"
 
 
-class Collective(Enum):
+class Collective(str, Enum):
     new = "This will be my first event."
     newish = "2-5 times"
     oldish = "6-10 times"
     old = "I basically live at Collective."
 
 
-class PersonIdentifier(BaseModel):
-    first_name: str
-    last_name: str
+class BaseObject(BaseModel):
+    index: str
 
 
-class Person(PersonIdentifier):
+class Nicknames(BaseObject):
+    firstName: str
+    lastName: str
+    nicknames: list[str]
+
+
+class Person(BaseObject):
+    order: int
+    firstName: str
+    lastName: str
+    age: int
     gender: Gender
-    preferred_people_raw: str | None = None
-    first_time: bool
-    age: int | None
+    firstTime: BooleanEnum
     collective: Collective
-    preferred_people: list[PersonIdentifier] = []
-    team: int | None = None
+    preferredPeopleRaw: str = ""
+    preferredPeople: list[str] = []
+    leader: BooleanEnum
+    team: str = ""
+    room: str = ""
+    participant: BooleanEnum
+
+
+class Control(BaseObject):
+    order: int
+    personIndex: str
+    teamInclude: list[str]
+    teamExclude: list[str]
+    roomInclude: list[str]
+    roomExclude: list[str]
+
+
+class Team(BaseObject):
+    name: str
+
+
+class Room(BaseObject):
+    name: str
+    size: int | Literal[""] = ""
+
+
+class StartupResponse(BaseModel):
+    people: list[Person]
+    controls: list[Control]
+    teams: list[Team]
+    rooms: list[Room]
+    nicknames: list[Nicknames]
+
+
+class Cell(BaseModel):
+    value: str | int | float | None = None
+    colspan: int = 1
 
 
 class Action(Enum):
@@ -38,25 +86,16 @@ class Action(Enum):
 
 
 class UserAction(BaseModel):
-    person_1: PersonIdentifier
-    person_2: PersonIdentifier
+    person_1: str
+    person_2: str
     action: Action
 
 
 class Targets(BaseModel):
-    team_size: int
-    collective_new: int
-    collective_newish: int
-    collective_oldish: int
-    collective_old: int
-    size_18: int
-    size_19_20: int
-    size_21_22: int
-    size_23_24: int
-    size_25: int
-    girl_count: int
-
-
-class FileReceipt(BaseModel):
-    people: list[Person]
-    message: str
+    team_size: float
+    collective_new: float
+    collective_newish: float
+    collective_oldish: float
+    collective_old: float
+    age_std: float
+    girl_count: float
