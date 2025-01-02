@@ -64,7 +64,7 @@ class Team(BaseObject):
 
 class Room(BaseObject):
     name: str
-    size: int | Literal[""] = ""
+    capacity: int | Literal[""] = ""
 
 
 class StartupResponse(BaseModel):

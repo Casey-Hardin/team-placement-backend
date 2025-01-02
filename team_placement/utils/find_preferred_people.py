@@ -8,7 +8,7 @@ def find_preferred_people(
     # assign nicknames to all people
     nicknames_dict: dict[str, str] = {}
     for person in people:
-        nicknames = next(
+        values = next(
             iter(
                 [
                     x.nicknames
@@ -18,7 +18,7 @@ def find_preferred_people(
             ),
             [],
         )
-        nicknames_dict[person.index] = nicknames
+        nicknames_dict[person.index] = values
 
     # decipher preferred people
     for person in people:
