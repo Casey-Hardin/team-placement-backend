@@ -10,6 +10,7 @@ from openpyxl import load_workbook
 import shortuuid
 
 # external imports
+from team_placement.constants import FIRST_TIME_COST
 from team_placement.schemas import BooleanEnum, Collective, Gender, Person
 
 
@@ -54,7 +55,7 @@ def read_excel(file: UploadFile) -> list[Person]:
 
     Parameters
     ----------
-    file: UploadFile
+    file
         Excel file with people data.
 
     Returns
@@ -62,6 +63,7 @@ def read_excel(file: UploadFile) -> list[Person]:
     list[Person]
         List of people collected from the Excel file.
     """
+    # file must have a valid extension
     if not any([file.filename.endswith(x) for x in [".xlsx", ".csv"]]):
         message = "Input must be an Excel file!"
         print(message)
@@ -140,7 +142,7 @@ def read_excel(file: UploadFile) -> list[Person]:
         )
         try:
             cost = float(paid) - float(donation)
-            first_time = BooleanEnum.yes if cost <= 35 else BooleanEnum.no
+            first_time = BooleanEnum.yes if cost <= FIRST_TIME_COST else BooleanEnum.no
         except:
             message += (
                 f"Paid and / or Donation are missing for {first_name}, {last_name}.\n"

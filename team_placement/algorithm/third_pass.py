@@ -1,13 +1,13 @@
 # external imports
-from . import schemas
-from team_placement.algorithm.objects import Cohort, Person
 from team_placement.algorithm.helpers import prioritized_cohort, sift_cohorts
+from team_placement.algorithm.objects import Cohort, PersonObject
+from team_placement.schemas import Targets
 
 
 def third_pass(
-    people: list[Person],
+    people: list[PersonObject],
     cohorts: list[Cohort],
-    targets: schemas.Targets,
+    targets: Targets,
 ) -> list[Cohort]:
     current_people = list(people)
     for person in current_people:
@@ -19,13 +19,10 @@ def third_pass(
             set(
                 [
                     x.cohort
-                    for x in person.preferred_people
+                    for x in person.preferred
                     if x not in person.cohort.people
-                    and (
-                        person.cohort.team_number is None
-                        or x.cohort.team_number is None
-                    )
-                    and x not in person.cohort.user_banned_list
+                    and (person.cohort.team == "" or x.cohort.team == "")
+                    and x not in person.cohort.banned_people
                     and person.cohort.validate(targets, cohorts, x.cohort)
                 ]
             )
@@ -44,7 +41,7 @@ def third_pass(
             case _:
                 # 2+ people are reasonable additions
                 # assign the best choice for the cohort
-                leader_cohorts = [x for x in cohorts if x.team_number is not None]
+                leader_cohorts = [x for x in cohorts if x.team != ""]
                 friend_cohort = prioritized_cohort(
                     person.cohort,
                     strict_friend_cohorts,

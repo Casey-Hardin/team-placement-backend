@@ -14,9 +14,14 @@ PRIORITIES = [
 ]
 
 
+# store objects locally for persistance
 LOCAL_PATH = Path("C:/Users") / os.getlogin() / "AppData/Local/Programs/Team Placement"
 PEOPLE_FILE_PATH = LOCAL_PATH / "people.json"
 CONTROLS_FILE_PATH = LOCAL_PATH / "controls.json"
 TEAMS_FILE_PATH = LOCAL_PATH / "teams.json"
 ROOMS_FILE_PATH = LOCAL_PATH / "rooms.json"
 NICKNAMES_FILE_PATH = LOCAL_PATH / "nicknames.json"
+
+
+# first-time cost
+FIRST_TIME_COST = 35

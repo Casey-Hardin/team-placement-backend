@@ -6,6 +6,7 @@ from fastapi import Body, FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 
 # external imports
+from team_placement.algorithm.run_teams import run_teams
 from team_placement.filesystem import collect_objects, save_objects
 from team_placement.schemas import (
     Cell,
@@ -118,7 +119,7 @@ async def get_rooms() -> list[Room]:
 
 
 @app.post("/run-teams")
-async def run_teams(
+async def run_teams_post(
     people: Annotated[
         list[Person],
         Body(description="People to assign to teams."),
@@ -133,7 +134,7 @@ async def run_teams(
     ],
 ) -> list[Person] | None:
     """Sorts people into teams."""
-    pass
+    return run_teams(people, controls, teams)
 
 
 @app.post("/run-rooms")
@@ -212,6 +213,7 @@ async def save_teams(
 
 @app.get("/startup")
 async def startup() -> StartupResponse:
+    """Collect objects from workspace on startup."""
     people = collect_objects(model=Person)
     controls = collect_objects(model=Control)
     teams = collect_objects(model=Team)

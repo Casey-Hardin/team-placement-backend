@@ -1,5 +1,5 @@
 # external imports
-from . import schemas
+from team_placement.schemas import Targets
 from team_placement.algorithm.objects import Cohort, Person
 from team_placement.algorithm.third_pass import third_pass
 
@@ -7,7 +7,7 @@ from team_placement.algorithm.third_pass import third_pass
 def fourth_pass(
     people: list[Person],
     cohorts: list[Cohort],
-    targets: schemas.Targets,
+    targets: Targets,
     previous_cohorts: list[list[str]],
 ) -> list[Cohort]:
     cohorts = third_pass(people, cohorts, targets)

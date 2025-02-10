@@ -1,7 +1,7 @@
 # native imports
 import json
 import os
-from typing import Callable, Type, TypeVar
+from typing import Type, TypeVar
 
 # third-party imports
 from pydantic import BaseModel

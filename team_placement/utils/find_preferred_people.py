@@ -5,6 +5,17 @@ from team_placement.schemas import Nicknames, Person
 def find_preferred_people(
     nicknames: list[Nicknames], people: list[Person]
 ) -> list[Person]:
+    """
+    Applies nicknames to match individuals in each person's preferred people list.
+
+    nicknames
+        Nicknames defined for people who may or may not be in the people list.
+    people
+        People with preferences to be on teams or rooms with other people.
+
+    people
+        People with preferences filled in.
+    """
     # assign nicknames to all people
     nicknames_dict: dict[str, str] = {}
     for person in people:

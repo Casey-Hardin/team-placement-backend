@@ -13,10 +13,10 @@ def sift_cohorts(
 ) -> list[Cohort]:
     previous_cohorts = [x.to_list() for x in cohorts]
     for cohort in cohorts:
-        if cohort.team_number != None:
+        if cohort.team != "":
             continue
 
-        leader_cohorts = [x for x in cohorts if x.team_number is not None]
+        leader_cohorts = [x for x in cohorts if x.team != ""]
         valid_leader_cohorts = [
             x for x in leader_cohorts if cohort.validate(targets, cohorts, x)
         ]
@@ -49,10 +49,8 @@ def prioritized_cohort(
         x
         for x in friend_cohorts
         if x != prospective_cohort
-        and (x.team_number is None or prospective_cohort.team_number is None)
-        and all(
-            [friend not in prospective_cohort.user_banned_list for friend in x.people]
-        )
+        and (x.team == "" or prospective_cohort.team == "")
+        and all([friend not in prospective_cohort.banned_people for friend in x.people])
     ]
     if len(allowed_cohorts) == 0:
         return None

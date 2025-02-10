@@ -1,16 +1,16 @@
 # external imports
-from team_placement import schemas
-from team_placement.algorithm.objects import Cohort, Person
+from team_placement.schemas import Targets
+from team_placement.algorithm.objects import Cohort, PersonObject
 from team_placement.algorithm.first_pass import first_pass
 from team_placement.algorithm.helpers import prioritized_cohort
 
 
 def second_pass(
-    people: list[Person],
+    people: list[PersonObject],
     cohorts: list[Cohort],
-    targets: schemas.Targets,
+    targets: Targets,
     must_assign: bool = False,
-) -> tuple[list[Person], list[Cohort]]:
+) -> tuple[list[PersonObject], list[Cohort]]:
     for person in people:
         # find new friends
         # leaders cannot cohort with leaders from other teams - only room together
@@ -20,13 +20,10 @@ def second_pass(
             set(
                 [
                     x.cohort
-                    for x in person.preferred_people
+                    for x in person.preferred
                     if x not in person.cohort.people
-                    and (
-                        person.cohort.team_number is None
-                        or x.cohort.team_number is None
-                    )
-                    and x not in person.cohort.user_banned_list
+                    and (person.cohort.team == "" or x.cohort.team == "")
+                    and x not in person.cohort.banned_people
                 ]
             )
         )
@@ -36,7 +33,7 @@ def second_pass(
         ]
 
         # take action when a new person has 0 or 1 possible preference
-        leader_cohorts = [x for x in cohorts if x.team_number is not None]
+        leader_cohorts = [x for x in cohorts if x.team != ""]
         match len(strict_friend_cohorts):
             case 0:
                 # adding person to a cohort with any of their friends

@@ -1,9 +1,25 @@
-from team_placement.algorithm.objects import Cohort, Person
+from team_placement.algorithm.objects import Cohort, PersonObject
 
 
 def first_pass(
-    people: list[Person], cohorts: list[Cohort]
-) -> tuple[list[Person], list[Cohort]]:
+    people: list[PersonObject], cohorts: list[Cohort]
+) -> tuple[list[PersonObject], list[Cohort]]:
+    """
+    Assigns people to cohorts with 1 preferred person.
+    Recurses after each addition to collapse preferred people on cohorts.
+
+    Parameters
+    ----------
+    people
+        People to be added to cohorts.
+    cohorts
+        Already existing cohorts.
+
+    list[PersonObject]
+        People with teams assigned.
+    list[Cohort]
+        Cohorts with new people added.
+    """
     current_people = list(people)
     for person in current_people:
         # find new friends
@@ -13,13 +29,10 @@ def first_pass(
             set(
                 [
                     x.cohort
-                    for x in person.preferred_people
+                    for x in person.preferred
                     if x not in person.cohort.people
-                    and (
-                        person.cohort.team_number is None
-                        or x.cohort.team_number is None
-                    )
-                    and x not in person.cohort.user_banned_list
+                    and (person.team == "" or x.team == "")
+                    and x not in person.cohort.banned_people
                 ]
             )
         )
@@ -38,7 +51,7 @@ def first_pass(
                 # too many choices at this time
                 continue
 
-        # combine person and their friend's cohorts
+        # combine cohorts of person and their friend
         cohorts = friend_cohort.add(person.cohort, cohorts)
 
         # recurse

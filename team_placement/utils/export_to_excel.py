@@ -13,7 +13,12 @@ from team_placement.schemas import Cell
 
 
 def export_to_excel(cells: list[list[Cell]]) -> None:
-    """Sends raw data to an Excel file."""
+    """
+    Sends raw data to an Excel file.
+
+    cells
+        Data to output to Excel having values and columnspans organized in rows.
+    """
     # create an object in memory for the workbook
     file = BytesIO()
 
@@ -31,17 +36,22 @@ def export_to_excel(cells: list[list[Cell]]) -> None:
         bottom=Side(style="thin"),
     )
 
+    # format for headers with content spanning atleast 2 columns
     blueFill = PatternFill(start_color="3ea6eb", end_color="3ea6eb", fill_type="solid")
 
     # output data to Excel
     print("Creating an Excel File.")
     for row_index, row in enumerate(cells, 1):
+        # column is controlled due to cells that span multiple columns
         column = 1
         for cell_dict in row:
+            # avoid Excel flag for strings that are actually floats
             try:
                 value = float(cell_dict.value)
             except:
                 value = cell_dict.value
+
+            # add value to worksheet
             cell = ws.cell(row=row_index, column=column, value=value)
             cell.alignment = Alignment(
                 horizontal="center", vertical="center", wrap_text=True
@@ -60,12 +70,16 @@ def export_to_excel(cells: list[list[Cell]]) -> None:
                     end_row=row_index,
                     end_column=column + cell_dict.colspan - 1,
                 )
+
+            # advance to next column
             column = column + cell_dict.colspan
 
     # size columns
     for index in range(1, column + 1):
         letter = get_column_letter(index)
         ws.column_dimensions[letter].width = 20
+
+    # finalize Excel workbook
     wb.save(file)
     wb.close()
     print("Excel file created successfully.")

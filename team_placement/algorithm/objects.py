@@ -4,50 +4,40 @@ from statistics import stdev
 from typing import Union
 
 # external imports
-from team_placement import schemas
+from team_placement.schemas import BooleanEnum, Collective, Gender, Person, Targets
 from team_placement.constants import PRIORITIES
 
 
-class Person(object):
-    # define nicknames - TODO add to config file
-    _all_nicknames = [
-        {
-            "first_name": "Madison",
-            "last_name": "Bauman",
-            "nicknames": ["Maddy"],
-        },
-        {
-            "first_name": "Madelynne",
-            "last_name": "Carden",
-            "nicknames": ["Lynnie"],
-        },
-        {
-            "first_name": "Steven",
-            "last_name": "Gamauf",
-            "nicknames": ["Gam"],
-        },
-    ]
+class PersonObject(object):
+    def __init__(self, person: Person):
+        self._index = person.index
+        self._order = person.order
 
-    def __init__(self, person: schemas.Person):
-        self._first_name = person.first_name
-        self._last_name = person.last_name
+        self._first_name = person.firstName
+        self._last_name = person.lastName
 
-        self._nicknames = None
-        for nickname in Person._all_nicknames:
-            if (
-                self._first_name == nickname["first_name"]
-                and self._last_name == nickname["last_name"]
-            ):
-                self._nicknames = nickname["nicknames"]
-
-        self._gender = person.gender
-        self._preferred_people_raw = person.preferred_people_raw
-        self._first_time = person.first_time
         self._age = person.age
+        self._gender = person.gender
+        self._first_time = person.firstTime
         self._collective = person.collective
+        self._preferred_people_raw = person.preferredPeopleRaw
+        self._preferred_people = person.preferredPeople
+        self._preferred = []
+
+        self._leader = person.leader
+        self._team = person.team
+        self._room = person.room
+        self._participant = person.participant
 
         self._cohort = Cohort(self)
-        self._preferred_people = []
+
+    @property
+    def index(self):
+        return self._index
+
+    @property
+    def order(self):
+        return self._order
 
     @property
     def first_name(self):
@@ -58,28 +48,56 @@ class Person(object):
         return self._last_name
 
     @property
-    def nicknames(self):
-        return self._nicknames
+    def age(self):
+        return self._age
 
     @property
     def gender(self):
         return self._gender
 
     @property
-    def preferred_people_raw(self):
-        return self._preferred_people_raw
-
-    @property
     def first_time(self):
         return self._first_time
 
     @property
-    def age(self):
-        return self._age
-
-    @property
     def collective(self):
         return self._collective
+
+    @property
+    def preferred_people(self):
+        return self._preferred_people
+
+    @property
+    def preferred(self):
+        return self._preferred
+
+    @preferred.setter
+    def preferred(self, people: list["PersonObject"]):
+        self._preferred = people
+
+    @property
+    def leader(self):
+        return self._leader
+
+    @leader.setter
+    def leader(self, leader: BooleanEnum):
+        self._leader = leader
+
+    @property
+    def team(self):
+        return self._team
+
+    @team.setter
+    def team(self, team: str):
+        self._team = team
+
+    @property
+    def room(self):
+        return self._room
+
+    @property
+    def participant(self):
+        return self._participant
 
     @property
     def cohort(self):
@@ -89,31 +107,22 @@ class Person(object):
     def cohort(self, cohort: "Cohort"):
         self._cohort = cohort
 
-    @property
-    def preferred_people(self):
-        return self._preferred_people
-
-    @preferred_people.setter
-    def preferred_people(self, people: list["Person"]):
-        self._preferred_people = people
-
     def to_dict(self):
-        return schemas.Person(
-            first_name=self._first_name,
-            last_name=self._last_name,
-            gender=self._gender,
-            preferred_people_raw=self._preferred_people_raw,
-            first_time=self._first_time,
+        return Person(
+            index=self._index,
+            order=self._order,
+            firstName=self._first_name,
+            lastName=self._last_name,
             age=self._age,
+            gender=self._gender,
+            first_time=self._first_time,
             collective=self._collective,
-            preferred_people=[
-                {
-                    "first_name": x.first_name,
-                    "last_name": x.last_name,
-                }
-                for x in self._preferred_people
-            ],
-            team=self._cohort.team_number,
+            preferred_people_raw=self._preferred_people_raw,
+            preferred_people=self._preferred_people,
+            leader=self._leader,
+            team=self._team,
+            room=self._room,
+            participant=self._participant,
         )
 
     def __str__(self):
@@ -121,44 +130,80 @@ class Person(object):
 
 
 class Cohort(object):
-    def __init__(
-        self, people: Person | list[Person] = [], team_number: int | None = None
-    ):
+    def __init__(self, people: PersonObject | list[PersonObject] = []):
+        if isinstance(people, PersonObject):
+            people = [people]
         self._people = people
-        if isinstance(self._people, Person):
-            self._people = [self._people]
-        for person in self._people:
-            if person.cohort != self:
-                person.cohort = self
-        self._team_number = team_number
 
-        self._user_banned_list = []
+        self._team = ""
+        if len(people) > 0:
+            # set team of cohort
+            self._team = people[0].team
+
+            # ensure team is same for all people in cohort
+            for person in people:
+                person.team = self._team
+
+        for person in self._people:
+            person.cohort = self
+
+        self._banned_people: list[PersonObject] = []
 
     @property
     def people(self):
         return self._people
 
-    def _set_people(self, people: list[Person]):
+    def _set_people(self, people: list[PersonObject]):
         self._people = people
 
     @property
-    def team_number(self):
-        return self._team_number
+    def team(self):
+        return self._team
 
-    @team_number.setter
-    def team_number(self, team_number: int | None):
-        self._team_number = team_number
+    @team.setter
+    def team(self, new_team: str):
+        self._team = new_team
+        for person in self._people:
+            person.team = new_team
 
     @property
-    def user_banned_list(self):
-        return self._user_banned_list
+    def banned_people(self):
+        return self._banned_people
 
-    @user_banned_list.setter
-    def user_banned_list(self, people: Person | list[Person]):
-        if isinstance(people, Person):
-            self._user_banned_list = [Person]
+    @banned_people.setter
+    def banned_people(self, people: PersonObject | list[PersonObject]):
+        if isinstance(people, PersonObject):
+            self._banned_people = [people]
             return
-        self._user_banned_list = people
+        self._banned_people = people
+
+    @property
+    def team_size(self):
+        return len(self._people)
+
+    @property
+    def collective_new(self):
+        return len([x for x in self._people if x.collective == Collective.new])
+
+    @property
+    def collective_newish(self):
+        return len([x for x in self._people if x.collective == Collective.newish])
+
+    @property
+    def collective_oldish(self):
+        return len([x for x in self._people if x.collective == Collective.oldish])
+
+    @property
+    def collective_old(self):
+        return len([x for x in self._people if x.collective == Collective.old])
+
+    @property
+    def age_std(self):
+        return stdev([x.age for x in self._people])
+
+    @property
+    def girl_count(self):
+        return len([x for x in self._people if x.gender == Gender.female])
 
     def add(
         self, friend_cohort: "Cohort", cohorts: list["Cohort"] | None = None
@@ -175,82 +220,26 @@ class Cohort(object):
             if person.cohort != self:
                 person.cohort = self
 
-        # assign new team number
-        self._team_number = (
-            self._team_number
-            if self._team_number != None
-            else friend_cohort.team_number
-        )
+        # assign new team
+        self.team = self._team if self._team != "" else friend_cohort.team
 
         # concatenate banned lists
-        self._user_banned_list += friend_cohort.user_banned_list
+        self._banned_people += friend_cohort.banned_people
 
         return cohorts
 
-    @property
-    def team_size(self):
-        return len(self._people)
-
-    @property
-    def collective_new(self):
-        return len([x for x in self._people if x.collective == schemas.Collective.new])
-
-    @property
-    def collective_newish(self):
-        return len(
-            [x for x in self._people if x.collective == schemas.Collective.newish]
-        )
-
-    @property
-    def collective_oldish(self):
-        return len(
-            [x for x in self._people if x.collective == schemas.Collective.oldish]
-        )
-
-    @property
-    def collective_old(self):
-        return len([x for x in self._people if x.collective == schemas.Collective.old])
-
-    @property
-    def size_18(self):
-        return len([x for x in self._people if x.age <= 18])
-
-    @property
-    def size_19_20(self):
-        return len([x for x in self._people if x.age >= 19 and x.age <= 20])
-
-    @property
-    def size_21_22(self):
-        return len([x for x in self._people if x.age >= 21 and x.age <= 22])
-
-    @property
-    def size_23_24(self):
-        return len([x for x in self._people if x.age >= 23 and x.age <= 24])
-
-    @property
-    def size_25(self):
-        return len([x for x in self._people if x.age >= 25])
-
-    @property
-    def age_std(self):
-        return stdev([x.age for x in self._people])
-
-    @property
-    def girl_count(self):
-        return len([x for x in self._people if x.gender == schemas.Gender.female])
-
     def validate(
         self,
-        targets: schemas.Targets,
+        targets: Targets,
         cohorts: list["Cohort"],
         test_cohort: Union["Cohort", None] = None,
     ):
-        pretend_metrics = schemas.Targets(
+        pretend_metrics = Targets(
             **{priority: getattr(self, priority) for priority in PRIORITIES}
         )
         people = list(self._people)
-        team_number = self._team_number
-        banned_list = list(self._user_banned_list)
+        team = self._team
+        banned_list = list(self._banned_people)
         if test_cohort is not None:
             for priority in PRIORITIES:
                 setattr(
@@ -261,20 +250,16 @@ class Cohort(object):
                         + getattr(test_cohort, priority)
                     ),
                 )
-            team_number = (
-                self._team_number
-                if self._team_number != None
-                else test_cohort.team_number
-            )
+            team_number = self._team if self._team != "" else test_cohort.team
             people += test_cohort.people
-            banned_list += test_cohort.user_banned_list
+            banned_list += test_cohort.banned_people
 
         if team_number is None:
-            leader_cohorts = [x for x in cohorts if x.team_number is not None]
+            leader_cohorts = [x for x in cohorts if x.team != ""]
             for cohort in leader_cohorts:
                 pretend_cohort = Cohort()
                 pretend_cohort._set_people(people)
-                pretend_cohort.user_banned_list = banned_list
+                pretend_cohort.banned_people = banned_list
                 if pretend_cohort.validate(targets, cohorts, cohort):
                     return True
             return False

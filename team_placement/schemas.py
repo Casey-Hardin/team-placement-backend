@@ -6,14 +6,18 @@ from typing import Literal
 from pydantic import BaseModel
 
 
+class BaseObject(BaseModel):
+    index: str
+
+
+class Cell(BaseModel):
+    value: str | int | float | None = None
+    colspan: int = 1
+
+
 class BooleanEnum(str, Enum):
     yes = "Yes"
     no = "No"
-
-
-class Gender(str, Enum):
-    male = "Male"
-    female = "Female"
 
 
 class Collective(str, Enum):
@@ -23,8 +27,9 @@ class Collective(str, Enum):
     old = "I basically live at Collective."
 
 
-class BaseObject(BaseModel):
-    index: str
+class Gender(str, Enum):
+    male = "Male"
+    female = "Female"
 
 
 class Nicknames(BaseObject):
@@ -58,13 +63,13 @@ class Control(BaseObject):
     roomExclude: list[str]
 
 
-class Team(BaseObject):
-    name: str
-
-
 class Room(BaseObject):
     name: str
     capacity: int | Literal[""] = ""
+
+
+class Team(BaseObject):
+    name: str
 
 
 class StartupResponse(BaseModel):
@@ -73,22 +78,6 @@ class StartupResponse(BaseModel):
     teams: list[Team]
     rooms: list[Room]
     nicknames: list[Nicknames]
-
-
-class Cell(BaseModel):
-    value: str | int | float | None = None
-    colspan: int = 1
-
-
-class Action(Enum):
-    unite = "unite"
-    separate = "separate"
-
-
-class UserAction(BaseModel):
-    person_1: str
-    person_2: str
-    action: Action
 
 
 class Targets(BaseModel):

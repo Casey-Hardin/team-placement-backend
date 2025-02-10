@@ -17,7 +17,7 @@ def read_json(file: UploadFile, model: Type[_T]) -> list[_T]:
 
     Parameters
     ----------
-    file: UploadFile
+    file
         A (.json) file with objects data.
 
     Returns
@@ -25,12 +25,15 @@ def read_json(file: UploadFile, model: Type[_T]) -> list[_T]:
     list[_T]
         Objects collected from the JSON file.
     """
+    # file must have a valid extension
     if not file.filename.endswith(".json"):
         message = "Input must be a json file!"
         print(message)
         raise HTTPException(status_code=410, detail={"message": message})
 
+    # read objects from JSON file
     try:
+        # assign indices and order to objects without them, but their object supports them
         object_dicts = json.load(file.file)
         for index, object_dict in enumerate(object_dicts):
             object_dict["index"] = (
@@ -41,8 +44,11 @@ def read_json(file: UploadFile, model: Type[_T]) -> list[_T]:
             object_dict["order"] = (
                 object_dict["order"] if "order" in object_dict else index
             )
+
+        # validate JSON with pydantic model
         all_objects = [model.model_validate(x) for x in object_dicts]
     except:
+        # objects were not valid
         message = f"Items could not be read from {file.filename}"
         print(message)
         raise HTTPException(status_code=411, detail={"message": message})

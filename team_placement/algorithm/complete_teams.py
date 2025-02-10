@@ -1,15 +1,15 @@
 # external imports
-from . import schemas
+from team_placement.schemas import Targets
 from team_placement.algorithm.objects import Cohort
 from team_placement.algorithm.helpers import prioritized_cohort
 
 
-def complete_teams(cohorts: list[Cohort], targets: schemas.Targets):
+def complete_teams(cohorts: list[Cohort], targets: Targets):
     # complete teams
     cohorts = sorted(cohorts, key=lambda x: x.team_size, reverse=True)
-    remaining_cohorts = [x for x in cohorts if x.team_number is None]
+    remaining_cohorts = [x for x in cohorts if x.team == ""]
     tolerance = 2
-    all_leader_cohorts = [x for x in cohorts if x.team_number is not None]
+    all_leader_cohorts = [x for x in cohorts if x.team != ""]
     min_allowed = targets.team_size - tolerance
     min_allowed = min_allowed if min_allowed > 0 else 0
     for cohort in remaining_cohorts:
@@ -24,11 +24,7 @@ def complete_teams(cohorts: list[Cohort], targets: schemas.Targets):
         max_value = min(cohort.team_size + number_left, targets.team_size + tolerance)
         max_value = max_value if max_value > min_allowed else min_allowed
         leader_cohorts = sorted(
-            [
-                x
-                for x in cohorts
-                if x.team_number is not None and x.team_size < max_value
-            ],
+            [x for x in cohorts if x.team != "" and x.team_size < max_value],
             key=lambda x: x.team_size,
             reverse=True,
         )
@@ -40,8 +36,8 @@ def complete_teams(cohorts: list[Cohort], targets: schemas.Targets):
         )
         cohorts = selected_cohort.add(cohort, cohorts)
 
-    leader_cohorts = [x for x in cohorts if x.team_number is not None]
-    remaining_cohorts = [x for x in cohorts if x.team_number is None]
+    leader_cohorts = [x for x in cohorts if x.team != ""]
+    remaining_cohorts = [x for x in cohorts if x.team == ""]
     for cohort in remaining_cohorts:
         selected_cohort = prioritized_cohort(
             cohort, leader_cohorts, targets, leader_cohorts
