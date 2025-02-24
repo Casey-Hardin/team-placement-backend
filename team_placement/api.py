@@ -133,7 +133,14 @@ async def run_teams_post(
         Body(description="Teams for people assignment."),
     ],
 ) -> list[Person] | None:
-    """Sorts people into teams."""
+    """
+    Sorts people into teams.
+
+    Returns
+    -------
+    list[Person] | None
+        People with teams assigned otherwise None.
+    """
     return run_teams(people, controls, teams)
 
 
@@ -152,7 +159,14 @@ async def run_rooms(
         Body(description="Rooms for people assignment."),
     ],
 ) -> list[Person] | None:
-    """Assigns people to rooms."""
+    """
+    Assigns people to rooms.
+
+    Returns
+    -------
+    list[Person] | None
+        People with rooms assigned otherwise None.
+    """
     pass
 
 
@@ -163,7 +177,14 @@ async def save_controls(
         Body(description="New controls."),
     ],
 ) -> list[Control]:
-    """Saves controls to a controls file."""
+    """
+    Saves controls to a controls file.
+
+    Returns
+    -------
+    list[Control]
+        Controls with index assigned.
+    """
     return save_objects(model=Control, objects=controls)
 
 
@@ -174,7 +195,14 @@ async def save_nicknames(
         Body(description="New nicknames."),
     ],
 ) -> list[Nicknames]:
-    """Saves nicknames to a nicknames file."""
+    """
+    Saves nicknames to a nicknames file.
+
+    Returns
+    -------
+    list[Nicknames]
+        Nicknames with index assigned.
+    """
     return save_objects(model=Nicknames, objects=nicknames)
 
 
@@ -185,7 +213,14 @@ async def save_people(
         Body(description="New people."),
     ],
 ) -> list[Person]:
-    """Saves people to a people file."""
+    """
+    Saves people to a people file.
+
+    Returns
+    -------
+    list[Person]
+        People with index assigned.
+    """
     return save_objects(model=Person, objects=people)
 
 
@@ -196,7 +231,14 @@ async def save_rooms(
         Body(description="New rooms."),
     ],
 ) -> list[Room]:
-    """Saves rooms to a rooms file."""
+    """
+    Saves rooms to a rooms file.
+
+    Returns
+    -------
+    list[Room]
+        Rooms with index assigned.
+    """
     return save_objects(model=Room, objects=rooms)
 
 
@@ -207,13 +249,27 @@ async def save_teams(
         Body(description="New teams."),
     ],
 ) -> list[Team]:
-    """Saves teams to a teams file."""
+    """
+    Saves teams to a teams file.
+
+    Returns
+    -------
+    list[Team]
+        Teams with index assigned.
+    """
     return save_objects(model=Team, objects=teams)
 
 
 @app.get("/startup")
 async def startup() -> StartupResponse:
-    """Collect objects from workspace on startup."""
+    """
+    Collects objects from workspace on startup.
+
+    Returns
+    -------
+    StartupResponse
+        Objects from the workspace.
+    """
     people = collect_objects(model=Person)
     controls = collect_objects(model=Control)
     teams = collect_objects(model=Team)
@@ -229,7 +285,14 @@ async def startup() -> StartupResponse:
 def upload_file(
     file: Annotated[UploadFile, File(description="Raw data.")],
 ) -> list[Person]:
-    """Read and interpret file data."""
+    """
+    Read and interpret file data.
+
+    Returns
+    -------
+    list[Person]
+        People collected from the file.
+    """
     if file.filename.endswith(".json"):
         return read_json(file, model=Person)
     elif any([file.filename.endswith(x) for x in [".xlsx", ".csv"]]):
@@ -244,7 +307,14 @@ def upload_file(
 def upload_nicknames_file(
     file: Annotated[UploadFile, File(description="Raw data.")],
 ) -> list[Nicknames]:
-    """Read and interpret file data."""
+    """
+    Read and interpret file data.
+
+    Returns
+    -------
+    list[Nicknames]
+        Nicknames collected from the file.
+    """
     return read_json(file, model=Nicknames)
 
 
@@ -259,7 +329,14 @@ def update_people(
         Body(description="New people."),
     ],
 ) -> list[Person]:
-    """Read and interpret file data."""
+    """
+    Read and interpret file data.
+
+    Returns
+    -------
+    list[Person]
+        People where preferred people are identified by index.
+    """
     people = find_preferred_people(nicknames, people)
 
     save_objects(model=Person, objects=people)

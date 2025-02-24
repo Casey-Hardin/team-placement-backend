@@ -7,11 +7,15 @@ def define_targets(people: list[PersonObject], teams: list[Team]) -> Targets:
     """
     Defines targets for team placement optimization.
 
+    Parameters
+    ----------
     people
         People to be placed on teams.
     teams
         Teams where people will be placed.
 
+    Returns
+    -------
     Targets
         Goals for each team when placing people on teams.
     """

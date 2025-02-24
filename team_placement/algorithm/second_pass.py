@@ -9,13 +9,39 @@ def second_pass(
     people: list[PersonObject],
     cohorts: list[Cohort],
     targets: Targets,
+    team_count: int,
     must_assign: bool = False,
 ) -> tuple[list[PersonObject], list[Cohort]]:
+    """
+    Assigns people to cohorts based on their demographics and preferences.
+
+    Parameters
+    ----------
+    people
+        People still to assign to cohorts.
+    cohorts
+        Functional groups of people in creating teams.
+    targets
+        Targets for each cohort.
+    team_count
+        Number of teams to create.
+    must_assign
+        Flag to force assignment of people to cohorts.
+
+    Returns
+    -------
+    list[PersonObject]
+        People with cohorts assigned.
+    list[Cohort]
+        Cohorts with people assigned.
+    """
+    if len(people) == 0:
+        return people, cohorts
+
     for person in people:
         # find new friends
         # leaders cannot cohort with leaders from other teams - only room together
         # remove person preferences rejected by user
-        # check for validity based on targets + adding to other cohorts
         friend_cohorts = list(
             set(
                 [
@@ -28,11 +54,14 @@ def second_pass(
             )
         )
 
+        # check for validity based on targets + adding to other cohorts
         strict_friend_cohorts = [
-            x for x in friend_cohorts if person.cohort.validate(targets, cohorts, x)
+            x
+            for x in friend_cohorts
+            if person.cohort.validate(targets, team_count, cohorts, x)
         ]
 
-        # take action when a new person has 0 or 1 possible preference
+        # take action when a new person has 0 or 1 possible preferences
         leader_cohorts = [x for x in cohorts if x.team != ""]
         match len(strict_friend_cohorts):
             case 0:
@@ -49,6 +78,7 @@ def second_pass(
                 # too many choices at this time
                 if not must_assign:
                     continue
+
                 friend_cohort = prioritized_cohort(
                     person.cohort, strict_friend_cohorts, targets, leader_cohorts
                 )
@@ -59,10 +89,10 @@ def second_pass(
         # recurse
         people = [x for x in people if x != person]
         people, cohorts = first_pass(people, cohorts)
-        people, cohorts = second_pass(people, cohorts, targets)
+        people, cohorts = second_pass(people, cohorts, targets, team_count)
         if must_assign:
             people, cohorts = second_pass(
-                people, cohorts, targets, must_assign=must_assign
+                people, cohorts, targets, team_count, must_assign=must_assign
             )
         return people, cohorts
     return people, cohorts

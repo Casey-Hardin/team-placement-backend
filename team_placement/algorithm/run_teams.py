@@ -2,6 +2,7 @@
 from fastapi import HTTPException
 
 # external imports
+from team_placement.algorithm.apply_controls import apply_controls
 from team_placement.algorithm.assign_leaders import assign_leaders
 from team_placement.algorithm.complete_teams import complete_teams
 from team_placement.algorithm.define_targets import define_targets
@@ -34,6 +35,8 @@ def run_teams(
     teams
         Teams for people assignment.
 
+    Returns
+    -------
     list[Person] | None
         People with teams assigned otherwise None.
     """
@@ -63,67 +66,24 @@ def run_teams(
     ]
     new_people_left, cohorts = first_pass(new_people, cohorts)
 
-    print([cohort.to_list() for cohort in cohorts])
-    return None
-
-    # enforce user preferences
-    for control in controls:
-        person_1 = next(
-            iter([x for x in people if x.index == control.personIndex]), None
-        )
-        if person_1 is None:
-            continue
-
-        # combine cohorts
-        for person in control.teamInclude:
-            # person_2 is missing
-            person_2 = next(iter([x for x in people if x.index == person.index]), None)
-            if person_2 is None:
-                continue
-
-            # leaders from different teams cannot be united
-            # leader separation is assumed
-            if person_1.cohort.team != "" and person_2.cohort.team != "":
-                continue
-
-            # cannot unite if the union is not blessed
-            if (
-                person_1 in person_2.cohort.banned_people
-                or person_2 in person_1.cohort.banned_people
-            ):
-                continue
-
-            # combine person_1 and person_2's cohorts
-            cohorts = person_1.cohort.add(person_2.cohort, cohorts)
-
-            # recurse
-            new_people_left = [
-                x
-                for x in new_people_left
-                if all([friend not in x.cohort.people for friend in x.preferred_people])
-            ]
-            new_people_left, cohorts = first_pass(new_people_left, cohorts)
-
-        # separate cohorts
-        for person in control.teamExclude:
-            # person_2 is missing
-            person_2 = next(iter([x for x in people if x.index == person.index]), None)
-            if person_2 is None:
-                continue
-
-            # ignore people already united
-            if person_1.cohort != person_2.cohort:
-                person_1.cohort.banned_people.append(person_2)
-                person_2.cohort.banned_people.append(person_1)
-            new_people_left, cohorts = first_pass(new_people_left, cohorts)
+    new_people_left, cohorts = apply_controls(
+        new_people_left, people, cohorts, controls
+    )
 
     # assign new people with 0 or 1 preference to cohorts while
     # respecting demographic targets and cohorts forming teams
     # restart whenever someone is added to a cohort to capture new information
-    new_people_left, cohorts = second_pass(new_people_left, cohorts, targets)
+    new_people_left, cohorts = second_pass(
+        new_people_left, cohorts, targets, len(teams)
+    )
 
     # assign new people with 2+ preferences
-    _, cohorts = second_pass(new_people_left, cohorts, targets, must_assign=True)
+    _, cohorts = second_pass(
+        new_people_left, cohorts, targets, len(teams), must_assign=True
+    )
+
+    print([cohort.to_list() for cohort in cohorts])
+    return None
 
     # assign cohorts to cohorts with leaders having 0 or 1 possibilities
     # based on demographic targets

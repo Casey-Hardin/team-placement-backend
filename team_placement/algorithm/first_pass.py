@@ -15,6 +15,8 @@ def first_pass(
     cohorts
         Already existing cohorts.
 
+    Returns
+    -------
     list[PersonObject]
         People with teams assigned.
     list[Cohort]

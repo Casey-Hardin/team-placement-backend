@@ -1,17 +1,21 @@
 # external imports
 from team_placement.algorithm.objects import Cohort, PersonObject
-from team_placement.schemas import BooleanEnum, Team
+from team_placement.schemas import Team
 
 
 def assign_leaders(people: list[PersonObject], teams: list[Team]) -> list[Cohort]:
     """
     Assigns leaders to cohorts.
 
+    Parameters
+    ----------
     people
         People prepared for team placement.
     teams
         Teams defined in the interface.
 
+    Returns
+    -------
     list[Cohort]
         Cohorts with leaders of the same team in the same cohort.
     """

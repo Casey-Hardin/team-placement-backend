@@ -7,9 +7,13 @@ def prepare_people_for_teams(all_people: list[Person]) -> list[PersonObject]:
     """
     Prepares people for team placement.
 
+    Parameters
+    ----------
     all_people
         People defined from the interface.
 
+    Returns
+    -------
     list[PersonObject]
         People objects prepared for team placement.
     """
