@@ -1,6 +1,7 @@
 # external imports
-from team_placement.algorithm.helpers import prioritized_cohort, sift_cohorts
+from team_placement.algorithm.prioritized_cohorts import prioritized_cohort
 from team_placement.algorithm.objects import Cohort, PersonObject
+from team_placement.algorithm.sift_cohorts import sift_cohorts
 from team_placement.schemas import Targets
 
 

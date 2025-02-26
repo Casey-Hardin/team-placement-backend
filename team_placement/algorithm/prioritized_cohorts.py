@@ -8,37 +8,6 @@ from team_placement.constants import PRIORITIES
 from team_placement.algorithm.objects import Cohort
 
 
-def sift_cohorts(
-    targets: schemas.Targets,
-    cohorts: list[Cohort],
-) -> list[Cohort]:
-    previous_cohorts = [x.to_list() for x in cohorts]
-    for cohort in cohorts:
-        if cohort.team != "":
-            continue
-
-        leader_cohorts = [x for x in cohorts if x.team != ""]
-        valid_leader_cohorts = [
-            x for x in leader_cohorts if cohort.validate(targets, cohorts, x)
-        ]
-        match len(valid_leader_cohorts):
-            case 0:
-                leader_cohort = prioritized_cohort(
-                    cohort, leader_cohorts, targets, leader_cohorts
-                )
-            case 1:
-                leader_cohort = valid_leader_cohorts[0]
-            case _:
-                # too many choices at this time
-                continue
-
-        # combine person and their friend's cohorts
-        cohorts = leader_cohort.add(cohort, cohorts)
-    if previous_cohorts != [x.to_list() for x in cohorts]:
-        return sift_cohorts(targets, cohorts)
-    return cohorts
-
-
 def prioritized_cohort(
     prospective_cohort: Cohort,
     friend_cohorts: list[Cohort],

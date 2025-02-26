@@ -327,6 +327,7 @@ class Cohort(object):
             # ensure team is same for all people in cohort
             for person in people:
                 person.team = self._team
+                person.cohort = self
 
         self._banned_people: list[PersonObject] = []
 
@@ -489,7 +490,8 @@ class Cohort(object):
         float
             Standard deviation of ages for people in a cohort.
         """
-        return stdev([x.age for x in self._people])
+        ages = [x.age for x in self._people]
+        return stdev(ages) if len(ages) > 1 else 0
 
     @property
     def girl_count(self) -> int:
@@ -536,7 +538,7 @@ class Cohort(object):
         """
         if cohorts is not None:
             # remove first because attributes change
-            cohorts = [x for x in cohorts if x != friend_cohort]
+            cohorts = [x for x in cohorts if x.to_list() != friend_cohort.to_list()]
 
         # add people from the new cohort to this one
         self._people += friend_cohort.people
@@ -612,7 +614,7 @@ class Cohort(object):
 
         any_leader_validate = any(
             [
-                pretend_cohort.validate(targets, cohorts, cohort)
+                pretend_cohort.validate(targets, team_count, cohorts, cohort)
                 for cohort in leader_cohorts
             ]
         )

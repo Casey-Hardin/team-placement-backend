@@ -8,7 +8,7 @@ from team_placement.algorithm.complete_teams import complete_teams
 from team_placement.algorithm.define_targets import define_targets
 from team_placement.algorithm.first_pass import first_pass
 from team_placement.algorithm.fourth_pass import fourth_pass
-from team_placement.algorithm.helpers import sift_cohorts
+from team_placement.algorithm.sift_cohorts import sift_cohorts
 from team_placement.algorithm.prepare_people_for_teams import prepare_people_for_teams
 from team_placement.algorithm.second_pass import second_pass
 from team_placement.constants import PRIORITIES
@@ -70,6 +70,8 @@ def run_teams(
         new_people_left, people, cohorts, controls
     )
 
+    print("HI!")
+
     # assign new people with 0 or 1 preference to cohorts while
     # respecting demographic targets and cohorts forming teams
     # restart whenever someone is added to a cohort to capture new information
@@ -77,17 +79,30 @@ def run_teams(
         new_people_left, cohorts, targets, len(teams)
     )
 
+    print("HI!!!")
+
     # assign new people with 2+ preferences
     _, cohorts = second_pass(
         new_people_left, cohorts, targets, len(teams), must_assign=True
     )
 
-    print([cohort.to_list() for cohort in cohorts])
+    grouped_people = [y for x in cohorts for y in x.people]
+    print(
+        [str(x) for x in people if str(x) not in [str(x) for x in grouped_people]],
+        "killed people.",
+    )
+    print(
+        [str(x) for x in people if [str(x) for x in grouped_people].count(str(x)) > 1],
+        "cloned people.",
+    )
     return None
 
     # assign cohorts to cohorts with leaders having 0 or 1 possibilities
     # based on demographic targets
-    cohorts = sift_cohorts(targets, cohorts)
+    cohorts = sift_cohorts(cohorts, targets, teams)
+
+    print([cohort.to_list() for cohort in cohorts])
+    return None
 
     # place the rest of preferred people for each new person
     new_people = [
@@ -141,3 +156,35 @@ def run_teams(
 
     for cohort in sorted(cohorts, key=lambda x: x.team):
         print(cohort.to_list(), cohort.team)
+
+
+if __name__ == "__main__":
+    # native imports
+    from pathlib import Path
+
+    # third-party imports
+    from fastapi import UploadFile
+    import shortuuid
+
+    # external imports
+    from team_placement.utils.find_preferred_people import find_preferred_people
+    from team_placement.utils.read_excel import read_excel
+    from team_placement.schemas import BooleanEnum
+
+    excel_path = Path(
+        "C:/Users/ac56533/Desktop/dev/Team Placement/Responses - Altered.xlsx"
+    )
+    file = UploadFile(
+        excel_path.open("rb"), size=excel_path.stat().st_size, filename=excel_path.name
+    )
+    all_people = read_excel(file)
+
+    all_people = find_preferred_people([], all_people)
+
+    team_names = list(set([x.team for x in all_people if x.leader == BooleanEnum.yes]))
+    newTeams = [
+        Team(index=shortuuid.ShortUUID().random(length=10), name=name)
+        for name in team_names
+    ]
+
+    run_teams(all_people, [], newTeams)

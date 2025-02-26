@@ -2,7 +2,7 @@
 from team_placement.schemas import Targets
 from team_placement.algorithm.objects import Cohort, PersonObject
 from team_placement.algorithm.first_pass import first_pass
-from team_placement.algorithm.helpers import prioritized_cohort
+from team_placement.algorithm.prioritized_cohorts import prioritized_cohort
 
 
 def second_pass(

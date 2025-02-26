@@ -54,7 +54,7 @@ def first_pass(
                 continue
 
         # combine cohorts of person and their friend
-        cohorts = friend_cohort.add(person.cohort, cohorts)
+        cohorts = person.cohort.add(friend_cohort, cohorts)
 
         # recurse
         people = [x for x in people if x != person]
