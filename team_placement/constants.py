@@ -25,3 +25,7 @@ NICKNAMES_FILE_PATH = LOCAL_PATH / "nicknames.json"
 
 # first-time cost
 FIRST_TIME_COST = 35
+
+# age restrictions
+MINIMUM_AGE = 18
+MAXIMUM_AGE = 30

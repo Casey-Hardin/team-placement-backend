@@ -3,7 +3,6 @@ from copy import deepcopy
 
 # external imports
 from team_placement.algorithm.second_pass import second_pass
-from team_placement.algorithm.objects import PersonObject
 from team_placement.schemas import (
     BooleanEnum,
     Collective,
@@ -35,6 +34,7 @@ PEOPLE_BASE = [
         leader=BooleanEnum.no,
         participant=BooleanEnum.yes,
         preferredPeople=[],
+        cohort="Cohort 1",
     ),
     Person(
         index="Girl 1",
@@ -48,6 +48,7 @@ PEOPLE_BASE = [
         leader=BooleanEnum.no,
         participant=BooleanEnum.yes,
         preferredPeople=[],
+        cohort="Cohort 2",
     ),
     Person(
         index="Girl 2",
@@ -61,6 +62,7 @@ PEOPLE_BASE = [
         leader=BooleanEnum.no,
         participant=BooleanEnum.yes,
         preferredPeople=[],
+        cohort="Cohort 3",
     ),
     Person(
         index="Extra Girl",
@@ -74,6 +76,7 @@ PEOPLE_BASE = [
         leader=BooleanEnum.no,
         participant=BooleanEnum.yes,
         preferredPeople=[],
+        cohort="Cohort 4",
     ),
     Person(
         index="Extra Guy 1",
@@ -87,6 +90,7 @@ PEOPLE_BASE = [
         leader=BooleanEnum.no,
         participant=BooleanEnum.yes,
         preferredPeople=[],
+        cohort="Cohort 5",
     ),
     Person(
         index="Extra Guy 2",
@@ -100,6 +104,7 @@ PEOPLE_BASE = [
         leader=BooleanEnum.no,
         participant=BooleanEnum.yes,
         preferredPeople=[],
+        cohort="Cohort 6",
     ),
     Person(
         index="Extra Guy 3",
@@ -113,6 +118,7 @@ PEOPLE_BASE = [
         leader=BooleanEnum.no,
         participant=BooleanEnum.yes,
         preferredPeople=[],
+        cohort="Cohort 7",
     ),
     Person(
         index="Extra Guy 4",
@@ -126,37 +132,26 @@ PEOPLE_BASE = [
         leader=BooleanEnum.no,
         participant=BooleanEnum.yes,
         preferredPeople=[],
+        cohort="Cohort 8",
     ),
 ]
 
 # neither person meets targets - assign Girl 1 who is closer in age
 PEOPLE_1 = deepcopy(PEOPLE_BASE)
 PEOPLE_1[0].preferredPeople = ["Girl 2", "Girl 1"]
-PEOPLE_1 = [PersonObject(x) for x in PEOPLE_1]
-for person in PEOPLE_1:
-    person.preferred = [x for x in PEOPLE_1 if x.index in person.preferred_people]
 
 # one person meets targets - assign Extra Guy 1 who meets targets
 PEOPLE_2 = deepcopy(PEOPLE_BASE)
 PEOPLE_2[0].preferredPeople = ["Girl 1", "Extra Guy 1"]
-PEOPLE_2 = [PersonObject(x) for x in PEOPLE_2]
-for person in PEOPLE_2:
-    person.preferred = [x for x in PEOPLE_2 if x.index in person.preferred_people]
 
 # two people meet targets - assign neither as must assign is False
 PEOPLE_3 = deepcopy(PEOPLE_BASE)
 PEOPLE_3[0].preferredPeople = ["Extra Guy 1", "Extra Guy 3"]
-PEOPLE_3 = [PersonObject(x) for x in PEOPLE_3]
-for person in PEOPLE_3:
-    person.preferred = [x for x in PEOPLE_3 if x.index in person.preferred_people]
 
 # two people meet targets
 # assign Extra Guy 3 as must assign is True and he is closer in age to New Girl
 PEOPLE_4 = deepcopy(PEOPLE_BASE)
 PEOPLE_4[0].preferredPeople = ["Extra Guy 1", "Extra Guy 3"]
-PEOPLE_4 = [PersonObject(x) for x in PEOPLE_4]
-for person in PEOPLE_4:
-    person.preferred = [x for x in PEOPLE_4 if x.index in person.preferred_people]
 
 TARGETS = Targets(
     team_size=2,
@@ -174,19 +169,14 @@ def test_neither_meets_targets():
     Tests the second pass when neither preferred person meets targets.
     Assigns the prioritized cohort.
     """
-    cohorts = [x.cohort for x in PEOPLE_1]
-    new_people_left = [x for x in PEOPLE_1 if x.first_time == BooleanEnum.yes]
-    new_people_left, cohorts = second_pass(
-        new_people_left, cohorts, TARGETS, len(TEAMS)
-    )
+    people = second_pass(PEOPLE_1, TARGETS, len(TEAMS))
+    cohorts = list(set([x.cohort for x in people]))
 
-    assert len(new_people_left) == 0
     assert len(cohorts) == 7
-    new_cohort = next(
-        iter([x for x in cohorts if "New Girl" in [y.index for y in x.people]]), None
-    )
-    assert new_cohort is not None
-    assert "Girl 1" in [x.index for x in new_cohort.people]
+    new_girl = next(iter([x for x in people if x.index == "New Girl"]), None)
+    girl_1 = next(iter([x for x in people if x.index == "Girl 1"]), None)
+    assert new_girl is not None and girl_1 is not None
+    assert new_girl.cohort == girl_1.cohort
 
 
 def test_one_meets_targets():
@@ -194,19 +184,14 @@ def test_one_meets_targets():
     Tests the second pass when only one preferred person meets targets.
     Assigns the person that meets targets.
     """
-    cohorts = [x.cohort for x in PEOPLE_2]
-    new_people_left = [x for x in PEOPLE_2 if x.first_time == BooleanEnum.yes]
-    new_people_left, cohorts = second_pass(
-        new_people_left, cohorts, TARGETS, len(TEAMS)
-    )
+    people = second_pass(PEOPLE_2, TARGETS, len(TEAMS))
+    cohorts = list(set([x.cohort for x in people]))
 
-    assert len(new_people_left) == 0
     assert len(cohorts) == 7
-    new_cohort = next(
-        iter([x for x in cohorts if "New Girl" in [y.index for y in x.people]]), None
-    )
-    assert new_cohort is not None
-    assert "Extra Guy 1" in [x.index for x in new_cohort.people]
+    new_girl = next(iter([x for x in people if x.index == "New Girl"]), None)
+    extra_guy = next(iter([x for x in people if x.index == "Extra Guy 1"]), None)
+    assert new_girl is not None and extra_guy is not None
+    assert new_girl.cohort == extra_guy.cohort
 
 
 def test_two_meet_targets():
@@ -214,16 +199,28 @@ def test_two_meet_targets():
     Tests the second pass when both preferred people meet targets without must assign.
     No one is assigned.
     """
-    cohorts = [x.cohort for x in PEOPLE_3]
-    cohorts_initial = [x.cohort.to_list() for x in PEOPLE_3]
-    new_people_left = [x for x in PEOPLE_3 if x.first_time == BooleanEnum.yes]
-    new_people_left, cohorts = second_pass(
-        new_people_left, cohorts, TARGETS, len(TEAMS)
-    )
+    people_in_cohorts = [
+        [x for x in PEOPLE_3 if x.cohort == cohort]
+        for cohort in set([x.cohort for x in PEOPLE_3])
+    ]
+    people_in_cohorts.sort(key=lambda x: min(x, key=lambda y: y.order).order)
+    cohorts_initial = [
+        [str(person) for person in cohort] for cohort in people_in_cohorts
+    ]
 
-    assert len(new_people_left) == 1
+    people = second_pass(PEOPLE_3, TARGETS, len(TEAMS))
+    cohorts = list(set([x.cohort for x in people]))
+
+    people_in_cohorts = [
+        [x for x in people if x.cohort == cohort]
+        for cohort in set([x.cohort for x in people])
+    ]
+    people_in_cohorts.sort(key=lambda x: min(x, key=lambda y: y.order).order)
+
     assert len(cohorts) == 8
-    assert [x.cohort.to_list() for x in PEOPLE_3] == cohorts_initial
+    assert [
+        [str(person) for person in cohort] for cohort in people_in_cohorts
+    ] == cohorts_initial
 
 
 def test_two_meet_targets_must_assign():
@@ -231,17 +228,13 @@ def test_two_meet_targets_must_assign():
     Tests the second pass when both preferred people meet targets with must assign.
     Assigns the prioritized cohort.
     """
-    cohorts = [x.cohort for x in PEOPLE_4]
-    new_people_left = [x for x in PEOPLE_4 if x.first_time == BooleanEnum.yes]
-    new_people_left, cohorts = second_pass(
-        new_people_left, cohorts, TARGETS, len(TEAMS), True
-    )
+    people = second_pass(PEOPLE_4, TARGETS, len(TEAMS), True)
+    cohorts = list(set([x.cohort for x in people]))
 
-    assert len(new_people_left) == 0
     assert len(cohorts) == 7
-    new_cohort = next(
-        iter([x for x in cohorts if "New Girl" in [y.index for y in x.people]]), None
-    )
-    assert new_cohort is not None
-    assert "Extra Guy 1" not in [x.index for x in new_cohort.people]
-    assert "Extra Guy 3" in [x.index for x in new_cohort.people]
+    new_girl = next(iter([x for x in people if x.index == "New Girl"]), None)
+    extra_guy_1 = next(iter([x for x in people if x.index == "Extra Guy 1"]), None)
+    extra_guy_3 = next(iter([x for x in people if x.index == "Extra Guy 3"]), None)
+    assert new_girl is not None and extra_guy_1 is not None and extra_guy_3 is not None
+    assert new_girl.cohort != extra_guy_1.cohort
+    assert new_girl.cohort == extra_guy_3.cohort

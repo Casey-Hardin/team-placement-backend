@@ -1,7 +1,7 @@
 # external imports
 from team_placement.schemas import Targets
 from team_placement.algorithm.objects import Cohort
-from team_placement.algorithm.prioritized_cohorts import prioritized_cohort
+from team_placement.algorithm.prioritized_friend import prioritized_friend
 
 
 def complete_teams(cohorts: list[Cohort], targets: Targets):

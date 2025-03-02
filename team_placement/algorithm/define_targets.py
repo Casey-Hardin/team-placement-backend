@@ -1,9 +1,8 @@
 # external imports
-from team_placement.algorithm.objects import PersonObject
-from team_placement.schemas import Collective, Gender, Targets, Team
+from team_placement.schemas import Collective, Gender, Person, Targets, Team
 
 
-def define_targets(people: list[PersonObject], teams: list[Team]) -> Targets:
+def define_targets(people: list[Person], teams: list[Team]) -> Targets:
     """
     Defines targets for team placement optimization.
 

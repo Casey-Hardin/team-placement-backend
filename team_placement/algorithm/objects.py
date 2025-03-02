@@ -1,6 +1,7 @@
 # native imports
 from copy import deepcopy
 from operator import attrgetter
+import shortuuid
 from statistics import stdev
 from typing import Union
 
@@ -38,7 +39,7 @@ class PersonObject(object):
         self._room = person.room
         self._participant = person.participant
 
-        self._cohort = Cohort(self)
+        self._cohort = shortuuid.ShortUUID().random(length=6)
 
     @property
     def index(self) -> int:

@@ -7,7 +7,7 @@ from team_placement.algorithm.assign_leaders import assign_leaders
 from team_placement.algorithm.complete_teams import complete_teams
 from team_placement.algorithm.define_targets import define_targets
 from team_placement.algorithm.first_pass import first_pass
-from team_placement.algorithm.fourth_pass import fourth_pass
+from team_placement.algorithm.third_pass import third_pass
 from team_placement.algorithm.sift_cohorts import sift_cohorts
 from team_placement.algorithm.prepare_people_for_teams import prepare_people_for_teams
 from team_placement.algorithm.second_pass import second_pass
@@ -18,6 +18,7 @@ from team_placement.schemas import (
     Person,
     Team,
 )
+from team_placement.utils.helpers import list_cohorts
 
 
 def run_teams(
@@ -52,77 +53,47 @@ def run_teams(
     # define targets per team
     targets = define_targets(people, teams)
 
+    print("assign leaders")
+
     # assign leaders to cohorts based on teams
-    cohorts = assign_leaders(people, teams)
+    people = assign_leaders(people, teams)
+
+    print("perform first pass")
 
     # assign new people with 0 or 1 preference to cohorts
     # restart whenever someone is added to a cohort to capture new information
-    new_people = [
-        x
-        for x in people
-        if x.first_time
-        and len(x.preferred) != 0
-        and all([friend not in x.cohort.people for friend in x.preferred])
-    ]
-    new_people_left, cohorts = first_pass(new_people, cohorts)
+    people = first_pass(people)
 
-    new_people_left, cohorts = apply_controls(
-        new_people_left, people, cohorts, controls
-    )
+    print("apply controls")
 
-    print("HI!")
+    people = apply_controls(people, controls)
+
+    print("perform second pass")
 
     # assign new people with 0 or 1 preference to cohorts while
     # respecting demographic targets and cohorts forming teams
     # restart whenever someone is added to a cohort to capture new information
-    new_people_left, cohorts = second_pass(
-        new_people_left, cohorts, targets, len(teams)
-    )
+    people = second_pass(people, targets, len(teams))
 
-    print("HI!!!")
+    print("perform second pass must assign")
 
     # assign new people with 2+ preferences
-    _, cohorts = second_pass(
-        new_people_left, cohorts, targets, len(teams), must_assign=True
-    )
+    people = second_pass(people, targets, len(teams), must_assign=True)
 
-    grouped_people = [y for x in cohorts for y in x.people]
-    print(
-        [str(x) for x in people if str(x) not in [str(x) for x in grouped_people]],
-        "killed people.",
-    )
-    print(
-        [str(x) for x in people if [str(x) for x in grouped_people].count(str(x)) > 1],
-        "cloned people.",
-    )
-    return None
+    print("sift cohorts")
 
     # assign cohorts to cohorts with leaders having 0 or 1 possibilities
     # based on demographic targets
-    cohorts = sift_cohorts(cohorts, targets, teams)
+    people = sift_cohorts(people, targets, teams)
 
-    print([cohort.to_list() for cohort in cohorts])
-    return None
+    print("perform third pass")
 
     # place the rest of preferred people for each new person
-    new_people = [
-        person
-        for person in people
-        if person.first_time
-        and len(
-            [
-                x.cohort
-                for x in person.preferred
-                if x not in person.cohort.people
-                and (person.cohort.team == "" or x.cohort.team == "")
-                and x not in person.cohort.banned_people
-                and person.cohort.validate(targets, cohorts, x.cohort)
-            ]
-        )
-        != 0
-    ]
-    previous_cohorts = [cohort.to_list() for cohort in cohorts]
-    cohorts = fourth_pass(new_people, cohorts, targets, previous_cohorts)
+    people = third_pass(people, targets, teams)
+
+    print(len(list(set([x.cohort for x in people]))))
+    # print(list_cohorts(people))
+    return None
 
     # place people by preferences in order of priorities
     order = [
@@ -134,7 +105,7 @@ def run_teams(
     for category in order:
         found_people = [x for x in people if getattr(x, "collective") == category]
         previous_cohorts = [cohort.to_list() for cohort in cohorts]
-        cohorts = fourth_pass(found_people, cohorts, targets, previous_cohorts)
+        cohorts = third_pass(found_people, cohorts, targets, previous_cohorts)
 
     # final assigns to all teams
     cohorts = complete_teams(cohorts, targets)

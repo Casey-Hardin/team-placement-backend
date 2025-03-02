@@ -1,5 +1,4 @@
 # external imports
-from team_placement.algorithm.objects import PersonObject
 from team_placement.algorithm.prepare_people_for_teams import prepare_people_for_teams
 from team_placement.schemas import BooleanEnum, Collective, Gender, Person
 
@@ -66,8 +65,3 @@ def test_process():
         iter([x for x in people if x.index == "Non-Participant"]), None
     )
     assert non_participant is None
-
-    # all remaining people must be of class PersonObject
-    for person in people:
-        assert type(person) == PersonObject
-        assert all([type(x) == PersonObject for x in person.preferred])

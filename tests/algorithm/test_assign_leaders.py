@@ -1,5 +1,4 @@
 # external imports
-from team_placement.algorithm.objects import PersonObject
 from team_placement.algorithm.assign_leaders import assign_leaders
 from team_placement.schemas import (
     BooleanEnum,
@@ -27,6 +26,7 @@ PEOPLE = [
         leader=BooleanEnum.yes,
         participant=BooleanEnum.yes,
         team="Team A",
+        cohort="Cohort 1",
     ),
     Person(
         index="Person 2",
@@ -40,6 +40,7 @@ PEOPLE = [
         leader=BooleanEnum.yes,
         participant=BooleanEnum.yes,
         team="Team B",
+        cohort="Cohort 2",
     ),
     Person(
         index="Person 3",
@@ -53,6 +54,7 @@ PEOPLE = [
         leader=BooleanEnum.yes,
         participant=BooleanEnum.yes,
         team="Team A",
+        cohort="Cohort 3",
     ),
     Person(
         index="Person 4",
@@ -66,6 +68,7 @@ PEOPLE = [
         leader=BooleanEnum.yes,
         participant=BooleanEnum.yes,
         team="Team B",
+        cohort="Cohort 4",
     ),
     Person(
         index="Person 5",
@@ -78,9 +81,9 @@ PEOPLE = [
         collective=Collective.oldish,
         leader=BooleanEnum.no,
         participant=BooleanEnum.yes,
+        cohort="Cohort 5",
     ),
 ]
-PEOPLE = [PersonObject(x) for x in PEOPLE]
 
 PEOPLE2 = [
     Person(
@@ -95,6 +98,7 @@ PEOPLE2 = [
         leader=BooleanEnum.yes,
         participant=BooleanEnum.yes,
         team="Team 1",
+        cohort="Cohort 1",
     ),
     Person(
         index="Person 2",
@@ -108,6 +112,7 @@ PEOPLE2 = [
         leader=BooleanEnum.yes,
         participant=BooleanEnum.yes,
         team="Team 1",
+        cohort="Cohort 2",
     ),
     Person(
         index="Person 3",
@@ -120,22 +125,26 @@ PEOPLE2 = [
         collective=Collective.oldish,
         leader=BooleanEnum.no,
         participant=BooleanEnum.yes,
+        cohort="Cohort 3",
     ),
 ]
-PEOPLE2 = [PersonObject(x) for x in PEOPLE2]
 
 
 def test_process():
     """Assigns leaders for team placement."""
     # define targets
-    cohorts = assign_leaders(PEOPLE, TEAMS)
-    assert len(cohorts) == 3
-    assert len([x for x in cohorts if x.team == "Team A"]) == 1
-    assert len([x for x in cohorts if x.team == "Team B"]) == 1
-    assert len([x for x in cohorts if x.team == ""]) == 1
+    people = assign_leaders(PEOPLE, TEAMS)
+    cohorts = list(set([x.cohort for x in people]))
 
-    cohorts = assign_leaders(PEOPLE2, TEAMS)
     assert len(cohorts) == 3
-    print([x.team for x in cohorts])
-    assert len([x for x in cohorts if x.team == "Team A"]) == 0
-    assert len([x for x in cohorts if x.team == "Team B"]) == 0
+    assert len([x for x in people if x.team == "Team A"]) == 2
+    assert len([x for x in people if x.team == "Team B"]) == 2
+    assert len([x for x in people if x.team == ""]) == 1
+
+
+def test_invalid_team_names():
+    people_2 = assign_leaders(PEOPLE2, TEAMS)
+    cohorts = list(set([x.cohort for x in people_2]))
+    assert len(cohorts) == 3
+    assert len([x for x in people_2 if x.team == "Team A"]) == 0
+    assert len([x for x in people_2 if x.team == "Team B"]) == 0

@@ -91,7 +91,7 @@ def test_process(monkeypatch):
     )
 
     apply_controls_mock = Mock()
-    apply_controls_mock.return_value = ([], [])
+    apply_controls_mock.return_value = []
     monkeypatch.setattr(
         "team_placement.algorithm.run_teams.apply_controls", apply_controls_mock
     )
@@ -99,7 +99,13 @@ def test_process(monkeypatch):
     second_pass_mock = Mock()
     second_pass_mock.return_value = ([], [])
     monkeypatch.setattr(
-        "team_placement.algorithm.run_teams.apply_controls", second_pass_mock
+        "team_placement.algorithm.run_teams.second_pass", second_pass_mock
+    )
+
+    sift_cohorts_mock = Mock()
+    sift_cohorts_mock.return_value = []
+    monkeypatch.setattr(
+        "team_placement.algorithm.run_teams.sift_cohorts", sift_cohorts_mock
     )
 
     run_teams(PEOPLE, CONTROLS, TEAMS)
@@ -109,4 +115,5 @@ def test_process(monkeypatch):
     assign_leaders_mock.call_count == 1
     first_pass_mock.call_count == 1
     apply_controls_mock.call_count == 1
-    second_pass_mock.call_count == 1
+    second_pass_mock.call_count == 2
+    sift_cohorts_mock.call_count == 1

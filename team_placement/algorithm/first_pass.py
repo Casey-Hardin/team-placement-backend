@@ -1,9 +1,9 @@
-from team_placement.algorithm.objects import Cohort, PersonObject
+# external imports
+from team_placement.schemas import Person
+from team_placement.utils.helpers import find_friends, find_new_people, join_cohorts
 
 
-def first_pass(
-    people: list[PersonObject], cohorts: list[Cohort]
-) -> tuple[list[PersonObject], list[Cohort]]:
+def first_pass(people: list[Person]) -> list[Person]:
     """
     Assigns people to cohorts with 1 preferred person.
     Recurses after each addition to collapse preferred people on cohorts.
@@ -11,52 +11,35 @@ def first_pass(
     Parameters
     ----------
     people
-        People to be added to cohorts.
-    cohorts
-        Already existing cohorts.
+        Already existing people where cohorts are assigned.
 
     Returns
     -------
-    list[PersonObject]
-        People with teams assigned.
-    list[Cohort]
-        Cohorts with new people added.
+    list[Person]
+        People with new people added to cohorts.
     """
-    current_people = list(people)
-    for person in current_people:
-        # find new friends
-        # leaders cannot cohort with leaders from other teams - only room together
-        # remove person preferences rejected by user
-        friend_cohorts = list(
-            set(
-                [
-                    x.cohort
-                    for x in person.preferred
-                    if x not in person.cohort.people
-                    and (person.team == "" or x.team == "")
-                    and x not in person.cohort.banned_people
-                ]
-            )
-        )
+    # assign new people to cohorts
+    new_people = find_new_people(people)
+    for person in new_people:
+        # find friends
+        friends = find_friends(person, people)
+
+        # proceed if a friend is already matched
+        if any([x.cohort == person.cohort for x in friends]):
+            continue
 
         # take action when a new person has 0 or 1 possible preference
-        match len(friend_cohorts):
+        match len(friends):
             case 0:
-                # no new friends to add
-                # remove the person from the list
-                people = [x for x in people if x != person]
+                # no friends to add
                 continue
             case 1:
-                # this is the person's choice
-                friend_cohort = friend_cohorts[0]
+                # add friend to the cohort of the person
+                people = join_cohorts(person.cohort, friends[0].cohort, people)
+
+                # recurse
+                return first_pass(people)
             case _:
                 # too many choices at this time
                 continue
-
-        # combine cohorts of person and their friend
-        cohorts = person.cohort.add(friend_cohort, cohorts)
-
-        # recurse
-        people = [x for x in people if x != person]
-        return first_pass(people, cohorts)
-    return people, cohorts
+    return people

@@ -1,21 +1,28 @@
 # external imports
-from team_placement import schemas
-from team_placement.algorithm.prioritized_cohorts import prioritized_cohort
-from team_placement.algorithm.objects import Cohort
+from team_placement.algorithm.prioritized_friend import prioritized_friend
+from team_placement.constants import PRIORITIES
+from team_placement.schemas import Person, Targets, Team
+from team_placement.utils.helpers import (
+    collect_metrics,
+    collect_representatives,
+    find_friends_strict,
+    join_cohorts,
+    list_cohorts,
+)
 
 
 def sift_cohorts(
-    cohorts: list[Cohort],
-    targets: schemas.Targets,
-    teams: list[schemas.Team],
-) -> list[Cohort]:
+    people: list[Person],
+    targets: Targets,
+    teams: list[Team],
+) -> list[Person]:
     """
     Assigns cohorts to leader cohorts based on targets.
 
     Parameters
     ----------
-    cohorts
-        Cohorts to assign to leader cohorts.
+    people
+        People to assign to teams.
     targets
         Targets for each cohort.
     teams
@@ -23,43 +30,64 @@ def sift_cohorts(
 
     Returns
     -------
-    list[Cohort]
-        Cohorts after cohort assignment.
+    list[Person]
+        People after cohort assignment.
     """
     # used for comparison to determine if any cohorts are combined
-    previous_cohorts = [x.to_list() for x in cohorts]
+    previous_cohorts = list_cohorts(people)
 
-    # combine cohorts based on targets
-    for cohort in cohorts:
-        # leader cohorts cannot be combined
-        if cohort.team != "":
+    # combine cohorts based on targets and sort by cohort size
+    representatives = collect_representatives(people)
+    representatives.sort(
+        key=lambda x: len([y for y in people if y.cohort == x.cohort]), reverse=True
+    )
+    for person in representatives:
+        # ignore leader cohorts
+        if person.team != "":
             continue
 
-        # collect leader cohorts
-        leader_cohorts = [x for x in cohorts if x.team != ""]
+        # collect leaders
+        leaders = [x for x in people if x.team != ""]
 
-        # collect teams without leaders
+        # determine if cohorts are sufficiently small to stop sifting
+        gaurenteed = []
+        leader_cohorts = list(set([x.cohort for x in leaders]))
+        for cohort in leader_cohorts:
+            leader_metrics = collect_metrics(people, cohort)
+            min_condition = min(
+                [
+                    getattr(targets, priority) - getattr(leader_metrics, priority)
+                    for priority in PRIORITIES
+                    if priority != "age_std"
+                ]
+            )
+            if len([x for x in people if x.cohort == cohort]) < min_condition:
+                gaurenteed += cohort
+
+        if len(gaurenteed) == 2:
+            break
+
+        # collect teams without members
         available_teams = [
-            x.name for x in teams if x.name not in [y.team for y in leader_cohorts]
+            x.name for x in teams if x.name not in [y.team for y in people]
         ]
 
         # find leader cohorts that can be combined with this cohort while meeting targets
-        valid_leader_cohorts = [
-            x
-            for x in leader_cohorts
-            if x.validate(targets, len(teams), cohorts, cohort)
-        ]
-        match len(valid_leader_cohorts):
+        valid_leaders = find_friends_strict(
+            person, leaders, people, targets, len(teams)
+        )
+        match len(valid_leaders):
             case 0:
                 # assign to a new team if allowed
                 if len(available_teams) > 0:
-                    cohort.team = available_teams[0]
+                    for member in [x for x in people if x.cohort == person.cohort]:
+                        member.team = available_teams[0]
                     continue
 
                 # cohort cannot be combined with any leader cohorts
                 # combine with best option based on targets
-                leader_cohort = prioritized_cohort(
-                    cohort, leader_cohorts, targets, leader_cohorts
+                best_leader = prioritized_friend(
+                    person, leaders, people, targets, len(teams)
                 )
             case 1:
                 # a team is unavailable - too many choices at this time
@@ -67,15 +95,19 @@ def sift_cohorts(
                     continue
 
                 # combine with leader cohort
-                leader_cohort = valid_leader_cohorts[0]
+                best_leader = valid_leaders[0]
             case _:
                 # too many choices at this time
                 continue
 
+        # no leader found to cohort with while meeting targets
+        if best_leader is None:
+            continue
+
         # combine person and their friend's cohorts
-        cohorts = leader_cohort.add(cohort, cohorts)
+        people = join_cohorts(person.cohort, best_leader.cohort, people)
 
     # restart if any cohorts are combined
-    if previous_cohorts != [x.to_list() for x in cohorts]:
-        return sift_cohorts(cohorts, targets, teams)
-    return cohorts
+    if previous_cohorts != list_cohorts(people):
+        return sift_cohorts(people, targets, teams)
+    return people

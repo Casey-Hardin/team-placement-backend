@@ -1,5 +1,4 @@
 # external imports
-from team_placement.algorithm.objects import PersonObject
 from team_placement.algorithm.define_targets import define_targets
 from team_placement.schemas import (
     BooleanEnum,
@@ -93,7 +92,6 @@ PEOPLE = [
         participant=BooleanEnum.yes,
     ),
 ]
-PEOPLE = [PersonObject(x) for x in PEOPLE]
 
 
 def test_process():

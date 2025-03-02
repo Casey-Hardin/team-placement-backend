@@ -52,6 +52,12 @@ class Person(BaseObject):
     team: str = ""
     room: str = ""
     participant: BooleanEnum
+    banned_people: list[str] = []
+    cohort: str = ""
+
+    def __str__(self) -> str:
+        """String representation of a person."""
+        return f"{self.firstName} {self.lastName}"
 
 
 class Control(BaseObject):

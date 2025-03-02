@@ -1,6 +1,5 @@
 # external imports
 from team_placement.algorithm.apply_controls import apply_controls
-from team_placement.algorithm.objects import PersonObject
 from team_placement.schemas import (
     BooleanEnum,
     Collective,
@@ -28,6 +27,7 @@ PEOPLE = [
         leader=BooleanEnum.no,
         participant=BooleanEnum.yes,
         preferredPeople=["Preferred Person", "Random Person"],
+        cohort="Cohort 1",
     ),
     Person(
         index="Preferred Person",
@@ -41,6 +41,7 @@ PEOPLE = [
         leader=BooleanEnum.no,
         participant=BooleanEnum.yes,
         preferredPeople=[],
+        cohort="Cohort 2",
     ),
     Person(
         index="Exclude Person",
@@ -54,6 +55,7 @@ PEOPLE = [
         leader=BooleanEnum.no,
         participant=BooleanEnum.yes,
         preferredPeople=[],
+        cohort="Cohort 3",
     ),
     Person(
         index="Leader 1",
@@ -68,6 +70,7 @@ PEOPLE = [
         participant=BooleanEnum.yes,
         team="Team A",
         preferredPeople=[],
+        cohort="Team A",
     ),
     Person(
         index="Leader 2",
@@ -82,6 +85,7 @@ PEOPLE = [
         participant=BooleanEnum.yes,
         team="Team B",
         preferredPeople=[],
+        cohort="Team B",
     ),
     Person(
         index="Include Team A Person",
@@ -95,6 +99,7 @@ PEOPLE = [
         leader=BooleanEnum.no,
         participant=BooleanEnum.yes,
         preferredPeople=[],
+        cohort="Cohort 4",
     ),
     Person(
         index="Another New Person",
@@ -111,6 +116,7 @@ PEOPLE = [
             "Another Preferred Person",
             "Another Exclude Person",
         ],
+        cohort="Cohort 5",
     ),
     Person(
         index="Another Preferred Person",
@@ -124,6 +130,7 @@ PEOPLE = [
         leader=BooleanEnum.no,
         participant=BooleanEnum.yes,
         preferredPeople=[],
+        cohort="Cohort 6",
     ),
     Person(
         index="Another Exclude Person",
@@ -137,11 +144,9 @@ PEOPLE = [
         leader=BooleanEnum.no,
         participant=BooleanEnum.yes,
         preferredPeople=[],
+        cohort="Cohort 7",
     ),
 ]
-PEOPLE = [PersonObject(x) for x in PEOPLE]
-for person in PEOPLE:
-    person.preferred = [x for x in PEOPLE if x.index in person.preferred_people]
 
 CONTROLS = [
     Control(
@@ -185,33 +190,31 @@ CONTROLS = [
 
 def test_process():
     """Tests that the first pass assigns people to teams."""
-    new_people_left = [x for x in PEOPLE if x.first_time == BooleanEnum.yes]
-    cohorts = [x.cohort for x in PEOPLE]
-    new_people_left, cohorts = apply_controls(
-        new_people_left, PEOPLE, cohorts, CONTROLS
-    )
-    assert len(new_people_left) == 0
+    people = apply_controls(PEOPLE, CONTROLS)
+    cohorts = list(set([x.cohort for x in PEOPLE]))
+    for new_person in [x for x in people if x.firstTime == BooleanEnum.yes]:
+        assert len([x for x in people if x.cohort == new_person.cohort]) > 1
     assert len(cohorts) == 6
 
-    new_person = next(iter([x for x in PEOPLE if x.index == "New Person"]), None)
+    new_person = next(iter([x for x in people if x.index == "New Person"]), None)
     preferred_person = next(
-        iter([x for x in PEOPLE if x.index == "Preferred Person"]), None
+        iter([x for x in people if x.index == "Preferred Person"]), None
     )
     exclude_person = next(
-        iter([x for x in PEOPLE if x.index == "Exclude Person"]), None
+        iter([x for x in people if x.index == "Exclude Person"]), None
     )
     include_person = next(
-        iter([x for x in PEOPLE if x.index == "Include Team A Person"]), None
+        iter([x for x in people if x.index == "Include Team A Person"]), None
     )
     leader_1_person = next(iter([x for x in PEOPLE if x.index == "Leader 1"]), None)
     another_new_person = next(
-        iter([x for x in PEOPLE if x.index == "Another New Person"]), None
+        iter([x for x in people if x.index == "Another New Person"]), None
     )
     another_preferred_person = next(
-        iter([x for x in PEOPLE if x.index == "Another Preferred Person"]), None
+        iter([x for x in people if x.index == "Another Preferred Person"]), None
     )
     another_exclude_person = next(
-        iter([x for x in PEOPLE if x.index == "Another Exclude Person"]), None
+        iter([x for x in people if x.index == "Another Exclude Person"]), None
     )
     assert all(
         [
@@ -230,12 +233,12 @@ def test_process():
     )
 
     for cohort in cohorts:
-        if new_person in cohort.people:
-            assert preferred_person in cohort.people
-            assert exclude_person in cohort.banned_people
-        if include_person in cohort.people:
-            assert leader_1_person in cohort.people
-            assert cohort.team == "Team A"
-        if another_new_person in cohort.people:
-            assert another_preferred_person in cohort.people
-            assert another_exclude_person in cohort.banned_people
+        if new_person.cohort == cohort:
+            assert preferred_person.cohort == cohort
+            assert exclude_person.index in new_person.banned_people
+        if include_person.cohort == cohort:
+            assert leader_1_person.cohort == cohort
+            assert include_person.team == "Team A"
+        if another_new_person.cohort == cohort:
+            assert another_preferred_person.cohort == cohort
+            assert another_exclude_person.index in another_new_person.banned_people

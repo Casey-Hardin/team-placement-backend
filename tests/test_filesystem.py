@@ -178,6 +178,7 @@ def test_collect_objects(fs):
 
 @pytest.mark.usefixtures("my_fs")
 def test_save_objects():
+    """Objects must be saved to each object file."""
     for path, model_type, model in zip(PATHS, MODEL_TYPES, MODELS):
         save_objects(model=model_type, objects=model)
 
