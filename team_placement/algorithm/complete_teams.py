@@ -1,46 +1,89 @@
 # external imports
-from team_placement.schemas import Targets
-from team_placement.algorithm.objects import Cohort
 from team_placement.algorithm.prioritized_friend import prioritized_friend
+from team_placement.schemas import Person, Targets
+from team_placement.utils.helpers import (
+    collect_metrics,
+    collect_representatives,
+    join_cohorts,
+)
 
 
-def complete_teams(cohorts: list[Cohort], targets: Targets):
-    # complete teams
-    cohorts = sorted(cohorts, key=lambda x: x.team_size, reverse=True)
-    remaining_cohorts = [x for x in cohorts if x.team == ""]
+def complete_teams(
+    people: list[Person], targets: Targets, team_count: int
+) -> list[Person]:
+    """
+    Assigns cohorts to teams based on their size and preferences.
+
+    Parameters
+    ----------
+    people
+        All people to assign to teams.
+    targets
+        Targets for each cohort.
+    team_count
+        Number of teams to assign people to.
+
+    Returns
+    -------
+    list[Person]
+        People with teams assigned.
+    """
+    # complete teams based on preferences in order of cohort size
+    representatives = collect_representatives(people)
+    representatives.sort(
+        key=lambda x: len([y for y in people if y.cohort == x.cohort]), reverse=True
+    )
+
+    leaders = [x for x in representatives if x.team != ""]
+    remaining_representatives = [x for x in representatives if x.team == ""]
+
     tolerance = 2
-    all_leader_cohorts = [x for x in cohorts if x.team != ""]
     min_allowed = targets.team_size - tolerance
     min_allowed = min_allowed if min_allowed > 0 else 0
-    for cohort in remaining_cohorts:
-        number_assigned = sum(
-            [x.team_size for x in all_leader_cohorts]
-        ) - min_allowed * len(all_leader_cohorts)
+    priority = "team_size"
+    for person in remaining_representatives:
+        number_assigned = (
+            sum([getattr(collect_metrics(people, x.cohort), priority) for x in leaders])
+            - min_allowed * team_count
+        )
         number_left = (
-            targets.team_size * len(all_leader_cohorts)
+            getattr(targets, priority) * team_count
             - number_assigned
-            - min_allowed * len(all_leader_cohorts)
+            - min_allowed * team_count
         )
-        max_value = min(cohort.team_size + number_left, targets.team_size + tolerance)
+        max_value = min(
+            getattr(collect_metrics(people, person.cohort), priority) + number_left,
+            getattr(targets, priority) + tolerance,
+        )
+
+        # minimum value must be maintained
         max_value = max_value if max_value > min_allowed else min_allowed
-        leader_cohorts = sorted(
-            [x for x in cohorts if x.team != "" and x.team_size < max_value],
-            key=lambda x: x.team_size,
-            reverse=True,
-        )
-        if len(leader_cohorts) == 0:
+
+        # leaders of cohorts that are not at or above the maximum team size
+        valid_leaders = [
+            x
+            for x in leaders
+            if getattr(collect_metrics(people, x.cohort), priority) < max_value
+        ]
+        if len(valid_leaders) == 0:
             break
 
-        selected_cohort = prioritized_cohort(
-            cohort, leader_cohorts, targets, all_leader_cohorts
-        )
-        cohorts = selected_cohort.add(cohort, cohorts)
+        # find the best leader for the person
+        friend = prioritized_friend(person, valid_leaders, people, targets, team_count)
+        if friend is None:
+            break
 
-    leader_cohorts = [x for x in cohorts if x.team != ""]
-    remaining_cohorts = [x for x in cohorts if x.team == ""]
-    for cohort in remaining_cohorts:
-        selected_cohort = prioritized_cohort(
-            cohort, leader_cohorts, targets, leader_cohorts
-        )
-        cohorts = selected_cohort.add(cohort, cohorts)
-    return cohorts
+        # combine person and their friend's cohorts
+        people = join_cohorts(person.cohort, friend.cohort, people)
+
+    # assign remaining representatives to teams
+    remaining_representatives = [x for x in people if x.team == ""]
+    for person in remaining_representatives:
+        # find the best leader for the person
+        friend = prioritized_friend(person, valid_leaders, people, targets, team_count)
+        if friend is None:
+            continue
+
+        # combine person and their friend's cohorts
+        people = join_cohorts(person.cohort, friend.cohort, people)
+    return people

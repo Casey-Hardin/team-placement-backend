@@ -44,7 +44,7 @@ def prepare_people_for_teams(all_people: list[Person]) -> list[Person]:
                 estimated_age = sum(ages) / len(ages)
                 if estimated_age < MINIMUM_AGE or estimated_age > MAXIMUM_AGE:
                     estimated_age = sum(ages) / len(ages)
-            person.age = estimated_age
+            person.age = int(estimated_age)
         elif person.age > MAXIMUM_AGE:
             person.age = MAXIMUM_AGE
 

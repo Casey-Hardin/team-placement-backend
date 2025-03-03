@@ -1,3 +1,6 @@
+# native imports
+from typing import Callable
+
 # external imports
 from team_placement.algorithm.prioritized_friend import prioritized_friend
 from team_placement.algorithm.sift_cohorts import sift_cohorts
@@ -5,7 +8,6 @@ from team_placement.schemas import Person, Targets, Team
 from team_placement.utils.helpers import (
     find_friends,
     find_friends_strict,
-    find_new_people_complete,
     join_cohorts,
     list_cohorts,
 )
@@ -15,6 +17,7 @@ def third_pass(
     people: list[Person],
     targets: Targets,
     teams: list[Team],
+    find_people: Callable[[list[Person]], list[Person]],
 ) -> list[Person]:
     """
     Assigns people to cohorts based on their demographics and preferences.
@@ -34,16 +37,10 @@ def third_pass(
         People with cohorts assigned.
     """
     while True:
-        print(len(list(set([x.cohort for x in people]))))
         people_in_cohorts = list_cohorts(people)
 
-        indices = find_new_people_complete(people, targets, len(teams))
-        for index in indices:
-            # find person with friends to assign
-            person = next(iter([x for x in people if x.index == index]), None)
-            if person is None:
-                continue
-
+        new_people = find_people(people)
+        for person in new_people:
             # find friends
             friends = find_friends(person, people)
 
@@ -53,7 +50,6 @@ def third_pass(
             )
 
             # take action when a new person has 0 or 1 possible preferences remaining
-            leader_cohorts = list(set([x.cohort for x in people if x.team != ""]))
             match len(new_friends):
                 case 0:
                     # adding person to a cohort with any of their remaining friends
@@ -66,7 +62,7 @@ def third_pass(
                     # 2+ people are reasonable additions
                     # assign the best choice for the cohort
                     new_friend = prioritized_friend(
-                        person, new_friends, people, targets, leader_cohorts, len(teams)
+                        person, new_friends, people, targets, len(teams)
                     )
 
             # no new friends found

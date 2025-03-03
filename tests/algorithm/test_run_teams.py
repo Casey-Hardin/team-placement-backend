@@ -85,7 +85,7 @@ def test_process(monkeypatch):
     )
 
     first_pass_mock = Mock()
-    first_pass_mock.return_value = ([], [])
+    first_pass_mock.return_value = []
     monkeypatch.setattr(
         "team_placement.algorithm.run_teams.first_pass", first_pass_mock
     )
@@ -97,7 +97,7 @@ def test_process(monkeypatch):
     )
 
     second_pass_mock = Mock()
-    second_pass_mock.return_value = ([], [])
+    second_pass_mock.return_value = []
     monkeypatch.setattr(
         "team_placement.algorithm.run_teams.second_pass", second_pass_mock
     )

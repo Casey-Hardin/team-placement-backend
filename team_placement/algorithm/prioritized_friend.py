@@ -1,11 +1,15 @@
 # native imports
-from copy import deepcopy
 from operator import attrgetter
 
 # external imports
 from team_placement.schemas import Person, Targets
 from team_placement.constants import PRIORITIES
-from team_placement.utils.helpers import collect_metrics, find_friends, join_cohorts
+from team_placement.utils.helpers import (
+    collect_metrics,
+    copy_people,
+    find_friends,
+    join_cohorts,
+)
 
 
 def prioritized_friend(
@@ -49,7 +53,7 @@ def prioritized_friend(
     pretend_metrics_dict: dict[str, Targets] = {}
     for friend in friends:
         # combine people and banned lists
-        pretend_people = deepcopy(people)
+        pretend_people = copy_people(people)
         pretend_people = join_cohorts(person.cohort, friend.cohort, pretend_people)
 
         # values on each target after joining cohorts

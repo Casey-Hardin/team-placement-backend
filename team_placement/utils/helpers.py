@@ -1,5 +1,4 @@
 # native imports
-from copy import deepcopy
 from statistics import stdev
 
 # external imports
@@ -78,6 +77,23 @@ def collect_representatives(people: list[Person]) -> list[Person]:
     return friend_representatives
 
 
+def copy_people(people: list[Person]) -> list[Person]:
+    """
+    Copies people to a new list.
+
+    Parameters
+    ----------
+    people
+        All people to place on teams.
+
+    Returns
+    -------
+    list[Person]
+        Copied people.
+    """
+    return [Person(**x.model_dump()) for x in people]
+
+
 def find_friends(
     person: Person,
     people: list[Person],
@@ -111,7 +127,7 @@ def find_friends(
         friend
         for friend in possible_friends
         if (person.team == "" or friend.team == "")
-        and friend.index != person.index
+        and friend.cohort != person.cohort
         and (friend.index in person.preferredPeople or not preferred)
         and all(
             [
@@ -153,14 +169,14 @@ def find_friends_strict(
         Possible friends for a person that will meet targets when cohorting.
     """
     # friends cannot already cohort with the person
-    possible_friends = [x for x in possible_friends if x.index != person.index]
+    possible_friends = [x for x in possible_friends if x.cohort != person.cohort]
     friends = collect_representatives(possible_friends)
 
     # check for validity based on targets and adding to leader cohorts
     friends_strict: list[Person] = []
     for friend in friends:
         # cohorts must not be modified from searching for new friends
-        pretend_people = deepcopy(people)
+        pretend_people = copy_people(people)
 
         # a pretend person and friend are not needed to join cohorts
         pretend_people = join_cohorts(person.cohort, friend.cohort, pretend_people)
@@ -196,7 +212,7 @@ def find_friends_strict(
         # cohort must add to a team while meeting targets
         for pretend_cohort in pretend_leader_cohorts:
             # start over for each leader cohort possibility
-            new_pretend_people = deepcopy(pretend_people)
+            new_pretend_people = copy_people(pretend_people)
 
             # friend is valid if a leader cohort can be joined
             new_pretend_people = join_cohorts(
@@ -265,41 +281,33 @@ def find_new_people(people: list[Person]) -> list[Person]:
     ]
 
 
-def find_new_people_complete(
-    people: list[Person], targets: Targets, team_count: int
-) -> list[str]:
+def find_new_people_complete(people: list[Person]) -> list[Person]:
     """
-    Collects indices of new people who have unmet preferences that meet targets.
+    Collects new people with unmet preferences that meet targets.
 
     Parameters
     ----------
     people
         All people to place on teams.
-    targets
-        Targets for each cohort to meet.
-    team_count
-        Number of teams to create.
 
     Returns
     -------
-    list[str]
-        Indices for new people who have further preferences to meet.
+    list[Person]
+        New people with further preferences to meet.
     """
-    new_people = []
-    for person in people:
-        new_friends = [
-            x
-            for x in people
-            if x.index in person.preferredPeople and x.cohort != person.cohort
-        ]
-
-        # find new friends based on targets
-        _, new_cohorts = find_friends_strict(
-            person, new_friends, people, targets, team_count
+    return [
+        x
+        for x in people
+        if x.firstTime == BooleanEnum.yes
+        and len(x.preferredPeople) != 0
+        and any(
+            [
+                index not in [y.index for y in people if y.cohort == x.cohort]
+                and index not in x.banned_people
+                for index in x.preferredPeople
+            ]
         )
-        if len(new_cohorts) > 0:
-            new_people.append(person)
-    return new_people
+    ]
 
 
 def join_cohorts(cohort_1: str, cohort_2: str, people: list[Person]) -> list[Person]:

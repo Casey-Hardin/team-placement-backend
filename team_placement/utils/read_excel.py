@@ -141,7 +141,7 @@ def read_excel(file: UploadFile) -> list[Person]:
             else 0
         )
         try:
-            cost = float(paid) - float(donation)
+            cost = float(paid) - float(donation) if paid != "-" else 0
             first_time = BooleanEnum.yes if cost <= FIRST_TIME_COST else BooleanEnum.no
         except:
             message += (

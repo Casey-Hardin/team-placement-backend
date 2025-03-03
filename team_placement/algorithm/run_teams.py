@@ -18,7 +18,7 @@ from team_placement.schemas import (
     Person,
     Team,
 )
-from team_placement.utils.helpers import list_cohorts
+from team_placement.utils.helpers import find_new_people_complete, list_cohorts
 
 
 def run_teams(
@@ -89,11 +89,9 @@ def run_teams(
     print("perform third pass")
 
     # place the rest of preferred people for each new person
-    people = third_pass(people, targets, teams)
+    people = third_pass(people, targets, teams, find_new_people_complete)
 
     print(len(list(set([x.cohort for x in people]))))
-    # print(list_cohorts(people))
-    return None
 
     # place people by preferences in order of priorities
     order = [
@@ -103,30 +101,46 @@ def run_teams(
         Collective.old,
     ]
     for category in order:
-        found_people = [x for x in people if getattr(x, "collective") == category]
-        previous_cohorts = [cohort.to_list() for cohort in cohorts]
-        cohorts = third_pass(found_people, cohorts, targets, previous_cohorts)
+        print(len(list(set([x.cohort for x in people]))))
+        people = third_pass(
+            people,
+            targets,
+            teams,
+            lambda group: [x for x in group if getattr(x, "collective") == category],
+        )
 
     # final assigns to all teams
-    cohorts = complete_teams(cohorts, targets)
+    people = complete_teams(people, targets, len(teams))
+
+    print(list_cohorts(people))
 
     target_metrics = {priority: (getattr(targets, priority)) for priority in PRIORITIES}
     for k, v in target_metrics.items():
         print(f"{k}: {v}")
     print("-------------------------------------------------------")
-    for cohort in sorted(cohorts, key=lambda x: x.team):
-        print(cohort.team)
-        metrics = {priority: (getattr(cohort, priority)) for priority in PRIORITIES}
+
+    from team_placement.utils.helpers import collect_metrics, collect_representatives
+
+    representatives = collect_representatives(people)
+    for person in sorted(representatives, key=lambda x: x.team):
+        print(person.team)
+        metrics = {
+            priority: (getattr(collect_metrics(people, person.cohort), priority))
+            for priority in PRIORITIES
+        }
         for k, v in metrics.items():
             print(f"{k}: {v}")
         print(
-            {priority: (getattr(cohort, priority)) for priority in PRIORITIES},
-            cohort.team,
+            {
+                priority: (getattr(collect_metrics(people, person.cohort), priority))
+                for priority in PRIORITIES
+            },
+            person.team,
         )
         print("-------------------------------------------------------")
 
-    for cohort in sorted(cohorts, key=lambda x: x.team):
-        print(cohort.to_list(), cohort.team)
+    print(list_cohorts(people))
+    return None
 
 
 if __name__ == "__main__":
