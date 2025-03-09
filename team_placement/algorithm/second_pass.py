@@ -38,6 +38,12 @@ def second_pass(
     # find new friends for each person to assign
     new_people = find_new_people(people)
     for person in new_people:
+        if person.firstName == "None" and must_assign:
+            from team_placement.utils.helpers import list_cohorts
+
+            print([str(x) for x in new_people])
+            print([x for x in list_cohorts(people) if len(x) > 1])
+            assert False
         # find friends
         friends = find_friends(person, people)
 
@@ -66,6 +72,10 @@ def second_pass(
                 friend = prioritized_friend(
                     person, strict_friends, people, targets, team_count
                 )
+
+                if person.firstName == "None" and must_assign:
+                    print(str(friend))
+                    assert False
 
         # no new friends found
         if friend is None:

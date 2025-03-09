@@ -1,15 +1,199 @@
 # native imports
-from operator import attrgetter
+from statistics import stdev
 
 # external imports
-from team_placement.schemas import Person, Targets
+from team_placement.schemas import Collective, Gender, Person, Targets
 from team_placement.constants import PRIORITIES
 from team_placement.utils.helpers import (
     collect_metrics,
-    copy_people,
     find_friends,
-    join_cohorts,
 )
+
+
+def find_other_people(
+    people_in_cohort: list[Person], people: list[Person]
+) -> list[Person]:
+    """
+    Collects people who could potentially cohort with people in cohort.
+
+    Parameters
+    ----------
+    people_in_cohort
+        People in a cohort.
+    people
+        All people to assign to teams.
+
+    Returns
+    -------
+    list[Person]
+        People who could potentially cohort with people already in cohort.
+    """
+    all_friends = [find_friends(x, people, None, False, True) for x in people_in_cohort]
+    return [x for x in people if all([x in y for y in all_friends])]
+
+
+def age_offset(
+    people_in_cohort: list[Person],
+    people: list[Person],
+    team_size: int,
+    target_age_std: float,
+) -> int:
+    """
+    Finds the number of people to add to a cohort to meet the target age standard deviation.
+    People added to the cohort are the worst match for the cohort based on age.
+
+    Parameters
+    ----------
+    people_in_cohort
+        People in a cohort. Representatives only is okay.
+    people
+        All people to assign to teams.
+    team_size
+        Number of people to add to a team.
+    target_age_std
+        Target age standard deviation.
+
+    Returns
+    -------
+    int
+        Number of people to add to a cohort to meet the target age standard deviation.
+    """
+    # collect ages of people in cohort
+    ages = [x.age for x in people if x.cohort in [y.cohort for y in people_in_cohort]]
+
+    # collect ages of people who could potentially cohort with people in cohort
+    other_people = find_other_people(people_in_cohort, people)
+    other_ages = [x.age for x in other_people]
+
+    # find the number of worst matches based on age to add to cohort to meet target
+    for count in range(team_size):
+        # no more people to add to cohort
+        # the limit does not exist
+        if len(other_ages) == 0:
+            return team_size
+
+        # calculate the standard deviation of ages based on a full team size
+        # add the mean age as best case scenario
+        mean_age = sum(ages) / len(ages)
+        new_ages = ages + [mean_age] * (team_size - len(ages))
+        age_std = stdev(new_ages)
+
+        # target age standard deviation is met
+        if age_std > target_age_std:
+            # print(new_ages)
+            return count
+
+        # add the worst match based on age to the cohort
+        worst_age = max(other_ages, key=lambda x: abs(x - mean_age))
+        ages = ages + [worst_age]
+        other_ages.remove(worst_age)
+    return team_size
+
+
+def collect_offsets(
+    person: Person,
+    friend: Person,
+    people: list[Person],
+    targets: Targets,
+    team_count: int,
+) -> Targets:
+    """
+    Collects the number of people to add to a cohort to meet the target values.
+
+    Parameters
+    ----------
+    person
+        A person.
+    friend
+        A friend of the person.
+    people
+        All people to assign to teams.
+    targets
+        Targets for each cohort.
+    team_count
+        Number of teams for team placement.
+
+    Returns
+    -------
+    Targets
+        Number of people to add to a cohort to meet the target values.
+    """
+    friend_metrics = collect_metrics(people, [person.cohort, friend.cohort])
+    other_people = find_other_people([person, friend], people)
+
+    # calculate the maximum number of people to add on each priority
+    # based on people left to be assigned
+    max_values = {}
+    tolerance = 1
+    leader_cohorts = list(set([x.cohort for x in people if x.team != ""]))
+    for priority in PRIORITIES:
+        # minimum value to meet targets
+        min_allowed = getattr(targets, priority) - tolerance
+        min_allowed = min_allowed if min_allowed > 0 else 0
+
+        # max value is calculated prior to joining cohorts
+        # priority is based on count
+        # account for the number of people left to assign
+        # for example 99 of 100 people are assigned, so 1 person is left
+        # a team may have 7 people and the target is 9
+        # 8 is the max as there is only one more person to assign
+        number_assigned = (
+            sum([getattr(collect_metrics(people, x), priority) for x in leader_cohorts])
+            - min_allowed * team_count
+        )
+        number_left = (
+            getattr(targets, priority) * team_count
+            - number_assigned
+            - min_allowed * team_count
+        )
+        max_value = min(
+            getattr(collect_metrics(people, person.cohort), priority) + number_left,
+            getattr(targets, priority),
+        )
+
+        # minimum value must be maintained
+        max_value = max_value if max_value > min_allowed else min_allowed
+        max_values[priority] = max_value
+
+    team_size_offset = max_values["team_size"] - friend_metrics.team_size
+    if team_size_offset > len(other_people):
+        team_size_offset = targets.team_size
+
+    new_offset = max_values["collective_new"] - friend_metrics.collective_new
+    if new_offset > len([x for x in other_people if x.collective == Collective.new]):
+        new_offset = targets.team_size
+
+    newish_offset = max_values["collective_newish"] - friend_metrics.collective_newish
+    if newish_offset > len(
+        [x for x in other_people if x.collective == Collective.newish]
+    ):
+        newish_offset = targets.team_size
+
+    oldish_offset = max_values["collective_oldish"] - friend_metrics.collective_oldish
+    if oldish_offset > len(
+        [x for x in other_people if x.collective == Collective.oldish]
+    ):
+        oldish_offset = targets.team_size
+
+    old_offset = max_values["collective_old"] - friend_metrics.collective_old
+    if old_offset > len([x for x in other_people if x.collective == Collective.old]):
+        old_offset = targets.team_size
+
+    girl_offset = max_values["girl_count"] - friend_metrics.girl_count
+    if girl_offset > len([x for x in other_people if x.gender == Gender.female]):
+        girl_offset = targets.team_size
+
+    return Targets(
+        team_size=team_size_offset,
+        collective_new=new_offset,
+        collective_newish=newish_offset,
+        collective_oldish=oldish_offset,
+        collective_old=old_offset,
+        age_std=age_offset(
+            [person, friend], people, int(targets.team_size), targets.age_std
+        ),
+        girl_count=girl_offset,
+    )
 
 
 def prioritized_friend(
@@ -18,7 +202,6 @@ def prioritized_friend(
     people: list[Person],
     targets: Targets,
     team_count: int,
-    must_pick: bool = True,
 ) -> Person | None:
     """
     Finds the best friend for a person based on possible friends while meeting targets.
@@ -34,132 +217,89 @@ def prioritized_friend(
     targets
         Targets for each cohort.
     team_count
-        Number of teams to assign people to.
-    must_pick
-        Flag to force assignment of people to cohorts.
+        Number of teams for team placement.
 
     Returns
     -------
     Person | None
         Friend to join with the prospective cohort.
     """
+    # sanitize friends
     # friends cannot be the prospective cohort
     # one or both cohorts must not have a team
     # the union cannot be banned
     # friends do not have to be preferred by the person
     friends = find_friends(person, people, possible_friends, False)
 
-    # collect metrics from each prospective union
-    pretend_metrics_dict: dict[str, Targets] = {}
-    for friend in friends:
-        # combine people and banned lists
-        pretend_people = copy_people(people)
-        pretend_people = join_cohorts(person.cohort, friend.cohort, pretend_people)
+    if person.firstName == "None":
+        print([str(x) for x in friends])
 
-        # values on each target after joining cohorts
-        pretend_metrics_dict[friend.index] = collect_metrics(
-            pretend_people, person.cohort
+    # collect metrics from each prospective union
+    offsets_dict: dict[str, Targets] = {}
+    for friend in friends:
+        offsets_dict[friend.index] = collect_offsets(
+            person, friend, people, targets, team_count
         )
 
+    if person.firstName == "None":
+        print(offsets_dict)
+        assert False
+
     # no friends form a valid pair
-    if len(pretend_metrics_dict) == 0:
+    if len(offsets_dict) == 0:
         return None
 
-    # filter cohorts based on target priorities
-    indices = [x.index for x in friends]
-    max_values = {}
-    tolerance = 1
-    leader_cohorts = list(set([x.cohort for x in people if x.team != ""]))
-    for priority in PRIORITIES:
-        # minimum value to meet targets
-        min_allowed = getattr(targets, priority) - tolerance
-        min_allowed = min_allowed if min_allowed > 0 else 0
-
-        # find the maximum allowed value for each target
-        if priority == "age_std":
-            # age is based on standard deviation rather than count
-            max_value = getattr(targets, priority) + tolerance
-        else:
-            # max value is calculated prior to joining cohorts
-            # priority is based on count
-            # account for the number of people left to assign
-            # for example 99 of 100 people are assigned, so 1 person is left
-            # a team may have 7 people and the target is 9
-            # 8 is the max as there is only one more person to assign
-            number_assigned = (
-                sum(
-                    [
-                        getattr(collect_metrics(people, x), priority)
-                        for x in leader_cohorts
-                    ]
-                )
-                - min_allowed * team_count
+    # find the friend having the maximum offset from target values
+    selected_friend = friends[0]
+    for friend in friends[1:]:
+        # find priorities where friends are not equal
+        local_priorities = [
+            priority
+            for priority in PRIORITIES
+            if not all(
+                [
+                    getattr(offsets_dict[x.index], priority)
+                    == getattr(offsets_dict[selected_friend.index], priority)
+                    for x in [selected_friend, friend]
+                ]
             )
-            number_left = (
-                getattr(targets, priority) * team_count
-                - number_assigned
-                - min_allowed * team_count
-            )
-            max_value = min(
-                getattr(collect_metrics(people, person.cohort), priority) + number_left,
-                getattr(targets, priority) + tolerance,
-            )
-
-        # minimum value must be maintained
-        max_value = max_value if max_value > min_allowed else min_allowed
-        max_values[priority] = max_value
-
-        # filter out cohorts that exceed the maximum value
-        for index, fake_metrics in pretend_metrics_dict.items():
-            # metric exceeds the maximum allowed value
-            above_max = getattr(fake_metrics, priority) > max_value
-
-            # smallest value of possible cohorts based on a metric
-            filtered_metrics = [
-                v for k, v in pretend_metrics_dict.items() if k in indices
-            ]
-            min_value = getattr(
-                min(filtered_metrics, key=attrgetter(priority)), priority
-            )
-
-            # remove possible cohorts that aren't the best match
-            if above_max and getattr(fake_metrics, priority) != min_value:
-                indices = [x for x in indices if x != index]
-
-    # pick a breaking choice when required
-    filtered_metrics = [v for k, v in pretend_metrics_dict.items() if k in indices]
-    if not must_pick and all(
-        [
-            any(
-                [getattr(x, priority) > max_values[priority] for priority in PRIORITIES]
-            )
-            for x in filtered_metrics
         ]
-    ):
-        return None
 
-    # either must assign is set or there are valid cohorts
-    # filter cohorts based on target priorities
-    for priority in PRIORITIES:
-        for index, fake_metrics in pretend_metrics_dict.items():
-            valid = getattr(fake_metrics, priority) <= getattr(targets, priority)
+        # no priorities are different
+        if len(local_priorities) == 0:
+            continue
 
-            filtered_metrics = [
-                v for k, v in pretend_metrics_dict.items() if k in indices
+        # find the flexibility for each friend to have additional people added to their cohort
+        min_offset = min(
+            [
+                getattr(offsets_dict[selected_friend.index], priority)
+                for priority in local_priorities
             ]
-            min_value = getattr(
-                min(filtered_metrics, key=attrgetter(priority)), priority
-            )
-            if not valid and getattr(fake_metrics, priority) != min_value:
-                indices = [x for x in indices if x != index]
+        )
 
-    # filter cohorts based on demographic priorities
-    for priority in PRIORITIES:
-        filtered_metrics = [v for k, v in pretend_metrics_dict.items() if k in indices]
-        min_value = getattr(min(filtered_metrics, key=attrgetter(priority)), priority)
-        indices = [
-            x
-            for x in indices
-            if getattr(pretend_metrics_dict[x], priority) == min_value
-        ]
-    return next(iter([x for x in friends if x.index == indices[0]]), None)
+        friend_min_offset = min(
+            [
+                getattr(offsets_dict[friend.index], priority)
+                for priority in local_priorities
+            ]
+        )
+
+        # current friend is flexible
+        if min_offset > friend_min_offset:
+            continue
+
+        # new friend is more flexible
+        if friend_min_offset > min_offset:
+            selected_friend = friend
+            continue
+
+        # runoff based on demographic priorities
+        for priority in PRIORITIES:
+            if getattr(offsets_dict[selected_friend.index], priority) == min_offset:
+                # current friend is flexible
+                break
+            elif getattr(offsets_dict[friend.index], priority) == min_offset:
+                # new friend is more flexible
+                selected_friend = friend
+                break
+    return selected_friend

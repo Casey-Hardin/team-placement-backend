@@ -284,7 +284,7 @@ async def startup() -> StartupResponse:
 @app.post("/upload-file")
 def upload_file(
     file: Annotated[UploadFile, File(description="Raw data.")],
-) -> list[Person]:
+) -> tuple[list[Person], str]:
     """
     Read and interpret file data.
 

@@ -153,6 +153,7 @@ PEOPLE_3[0].preferredPeople = ["Extra Guy 1", "Extra Guy 3"]
 PEOPLE_4 = deepcopy(PEOPLE_BASE)
 PEOPLE_4[0].preferredPeople = ["Extra Guy 1", "Extra Guy 3"]
 
+
 TARGETS = Targets(
     team_size=2,
     collective_new=1,
@@ -162,6 +163,146 @@ TARGETS = Targets(
     age_std=2,
     girl_count=1,
 )
+
+
+def test_maximum_offset():
+    """
+    Tests the second pass when based on offset from targets.
+    Assigns the person with the largest offset.
+    """
+    people = [
+        Person(
+            index="Girl 1",
+            order=1,
+            firstName="Emma",
+            lastName="Marz",
+            age=20,
+            gender=Gender.female,
+            firstTime=BooleanEnum.no,
+            collective=Collective.newish,
+            leader=BooleanEnum.no,
+            participant=BooleanEnum.yes,
+            preferredPeople=[],
+            cohort="Cohort 1",
+        ),
+        Person(
+            index="Girl 2",
+            order=2,
+            firstName="Jayla",
+            lastName="Woodson",
+            age=20,
+            gender=Gender.female,
+            firstTime=BooleanEnum.no,
+            collective=Collective.new,
+            leader=BooleanEnum.no,
+            participant=BooleanEnum.yes,
+            preferredPeople=[],
+            cohort="Cohort 2",
+        ),
+        Person(
+            index="Girl 3",
+            order=3,
+            firstName="Charlotte",
+            lastName="Hoffman",
+            age=24,
+            gender=Gender.female,
+            firstTime=BooleanEnum.no,
+            collective=Collective.new,
+            leader=BooleanEnum.no,
+            participant=BooleanEnum.yes,
+            preferredPeople=[],
+            cohort="Cohort 3",
+        ),
+        Person(
+            index="Girl 4",
+            order=4,
+            firstName="Eva",
+            lastName="Clark-hoffman",
+            age=21,
+            gender=Gender.female,
+            firstTime=BooleanEnum.no,
+            collective=Collective.newish,
+            leader=BooleanEnum.no,
+            participant=BooleanEnum.yes,
+            preferredPeople=[],
+            cohort="Cohort 4",
+        ),
+        Person(
+            index="Girl 5",
+            order=5,
+            firstName="Ali",
+            lastName="Clements",
+            age=21,
+            gender=Gender.female,
+            firstTime=BooleanEnum.yes,
+            collective=Collective.new,
+            leader=BooleanEnum.no,
+            participant=BooleanEnum.yes,
+            preferredPeople=["Girl 1", "Girl 2"],
+            cohort="Cohort 5",
+        ),
+        Person(
+            index="Girl 6",
+            order=6,
+            firstName="Katelyn",
+            lastName="Molek",
+            age=21,
+            gender=Gender.female,
+            firstTime=BooleanEnum.no,
+            collective=Collective.new,
+            leader=BooleanEnum.no,
+            participant=BooleanEnum.yes,
+            preferredPeople=[],
+            cohort="Cohort 6",
+        ),
+        Person(
+            index="Girl 7",
+            order=7,
+            firstName="Jane",
+            lastName="Doe",
+            age=21,
+            gender=Gender.female,
+            firstTime=BooleanEnum.no,
+            collective=Collective.new,
+            leader=BooleanEnum.no,
+            participant=BooleanEnum.yes,
+            preferredPeople=[],
+            cohort="Cohort 7",
+        ),
+        Person(
+            index="Girl 8",
+            order=8,
+            firstName="Julia",
+            lastName="Doe",
+            age=21,
+            gender=Gender.female,
+            firstTime=BooleanEnum.no,
+            collective=Collective.new,
+            leader=BooleanEnum.no,
+            participant=BooleanEnum.yes,
+            preferredPeople=[],
+            cohort="Cohort 8",
+        ),
+    ]
+
+    targets = Targets(
+        team_size=4,
+        collective_new=3,
+        collective_newish=1,
+        collective_oldish=0,
+        collective_old=0,
+        age_std=2,
+        girl_count=4,
+    )
+
+    people = second_pass(people, targets, 2, must_assign=True)
+    girl_1 = next(iter([x for x in people if x.index == "Girl 1"]), None)
+    girl_2 = next(iter([x for x in people if x.index == "Girl 2"]), None)
+    girl_5 = next(iter([x for x in people if x.index == "Girl 5"]), None)
+    print([str(x) for x in people if x.cohort == girl_5.cohort])
+    assert all([x is not None for x in [girl_1, girl_2, girl_5]])
+    assert girl_1.cohort != girl_5.cohort
+    assert girl_2.cohort == girl_5.cohort
 
 
 def test_neither_meets_targets():
@@ -227,6 +368,7 @@ def test_two_meet_targets_must_assign():
     """
     Tests the second pass when both preferred people meet targets with must assign.
     Assigns the prioritized cohort.
+    Assigns first preferred person despite age gap as neither breaks targets.
     """
     people = second_pass(PEOPLE_4, TARGETS, len(TEAMS), True)
     cohorts = list(set([x.cohort for x in people]))
@@ -236,5 +378,5 @@ def test_two_meet_targets_must_assign():
     extra_guy_1 = next(iter([x for x in people if x.index == "Extra Guy 1"]), None)
     extra_guy_3 = next(iter([x for x in people if x.index == "Extra Guy 3"]), None)
     assert new_girl is not None and extra_guy_1 is not None and extra_guy_3 is not None
-    assert new_girl.cohort != extra_guy_1.cohort
-    assert new_girl.cohort == extra_guy_3.cohort
+    assert new_girl.cohort == extra_guy_1.cohort
+    assert new_girl.cohort != extra_guy_3.cohort

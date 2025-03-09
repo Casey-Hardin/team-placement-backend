@@ -49,7 +49,7 @@ OPTIONAL_COLUMNS_DICT = {
 }
 
 
-def read_excel(file: UploadFile) -> list[Person]:
+def read_excel(file: UploadFile) -> tuple[list[Person], str]:
     """
     Reads people from an Excel file.
 
@@ -62,6 +62,8 @@ def read_excel(file: UploadFile) -> list[Person]:
     -------
     list[Person]
         List of people collected from the Excel file.
+    str
+        Message indicating any issues with the input file.
     """
     # file must have a valid extension
     if not any([file.filename.endswith(x) for x in [".xlsx", ".csv"]]):
@@ -85,7 +87,7 @@ def read_excel(file: UploadFile) -> list[Person]:
 
         # collect names of missing required columns
         if column_index is None:
-            if name in OPTIONAL_COLUMNS_DICT:
+            if name in OPTIONAL_COLUMNS_DICT.values():
                 continue
             missing_columns.append(name)
             continue
@@ -109,16 +111,31 @@ def read_excel(file: UploadFile) -> list[Person]:
         if row_index < 6:
             continue
 
+        # skip empty rows
+        if all([x in ["", None] for x in row]):
+            continue
+
         # collect first and last names
         first_name = row[indices[Columns.first_name]]
         last_name = row[indices[Columns.last_name]]
         if first_name in ["", None] or last_name in ["", None]:
+            message += (
+                f"First and / or Last Name is missing for person at row {row_index}.\n"
+            )
             continue
+        first_name = str(first_name).strip().capitalize()
+        last_name = str(last_name).strip().capitalize()
 
         # collect gender
-        gender = row[indices[Columns.gender]]
+        gender: str = row[indices[Columns.gender]]
+        if gender.lower().startswith("m") or gender.lower() == "dude":
+            gender = Gender.male.value
+        elif gender.lower().startswith("f") or gender.lower() in ["girl", "lady"]:
+            gender = Gender.female.value
         if gender not in [x.value for x in Gender]:
-            message += f"Gender is missing for {first_name}, {last_name}.\n"
+            message += (
+                f"Gender is missing for {first_name}, {last_name} at row {row_index}.\n"
+            )
             continue
 
         # collect a string to decipher preferred
@@ -144,9 +161,7 @@ def read_excel(file: UploadFile) -> list[Person]:
             cost = float(paid) - float(donation) if paid != "-" else 0
             first_time = BooleanEnum.yes if cost <= FIRST_TIME_COST else BooleanEnum.no
         except:
-            message += (
-                f"Paid and / or Donation are missing for {first_name}, {last_name}.\n"
-            )
+            message += f"Paid and / or Donation are missing for {first_name}, {last_name} at row {row_index}.\n"
             continue
 
         # collect age based on birthday
@@ -154,13 +169,15 @@ def read_excel(file: UploadFile) -> list[Person]:
         try:
             age = relativedelta(datetime.today(), birthday).years
         except:
-            message += f"Age is missing for {first_name}, {last_name}.\n"
+            message += (
+                f"Age is missing for {first_name}, {last_name} at row {row_index}.\n"
+            )
             continue
 
         # collect collective status
-        collective = row[indices[Columns.collective]]
+        collective = row[indices[Columns.collective]].split(",")[0]
         if collective not in [x.value for x in Collective]:
-            message += f"Collective Status is missing for {first_name}, {last_name}.\n"
+            message += f"Collective Status is missing for {first_name}, {last_name} at row {row_index}.\n"
             continue
 
         # collect leader status
@@ -202,4 +219,4 @@ def read_excel(file: UploadFile) -> list[Person]:
             participant=participant,
         )
         people.append(person)
-    return people
+    return people, message

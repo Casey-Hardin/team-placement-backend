@@ -6,7 +6,33 @@ from team_placement.constants import PRIORITIES
 from team_placement.schemas import BooleanEnum, Collective, Gender, Person, Targets
 
 
-def collect_metrics(people: list[Person], cohort: str) -> Targets:
+def adjusted_stdev(ages: list[int], team_size: int) -> float:
+    """
+    Adjusts the standard deviation of ages for a team size.
+
+    Parameters
+    ----------
+    ages
+        Ages of people on a team.
+    team_size
+        Number of people on a team.
+
+    Returns
+    -------
+    float
+        Adjusted standard deviation of ages for a team size.
+    """
+    mean_age = sum(ages) / len(ages)
+    new_ages = ages + [mean_age] * (int(team_size) - len(ages))
+    return stdev(new_ages)
+
+
+def collect_metrics(
+    people: list[Person],
+    cohorts: str | list[str],
+    adjust_age: bool = False,
+    target_team_size: int | None = None,
+) -> Targets:
     """
     Collects metrics for a cohort based on people in the cohort.
 
@@ -15,17 +41,30 @@ def collect_metrics(people: list[Person], cohort: str) -> Targets:
     people
         All people to place on teams.
     cohort
-        Cohort to collect metrics for.
+        Cohort(s) to collect metrics for.
+    adjust_age
+        Flag to adjust the standard deviation of ages for a team size.
+    target_team_size
+        Number of people on a team.
 
     Returns
     -------
     Targets
-        Metrics for a cohort.
+        Metrics for cohort(s).
     """
-    people_in_cohort = [x for x in people if x.cohort == cohort]
+    if isinstance(cohorts, str):
+        cohorts = [cohorts]
+
+    people_in_cohort = [x for x in people if x.cohort in cohorts]
 
     team_size = len(people_in_cohort)
     ages = [x.age for x in people_in_cohort]
+
+    # scale age standard deviation to a full team size
+    age_std = stdev(ages) if len(ages) > 1 else 0
+    if adjust_age and target_team_size is not None:
+        age_std = adjusted_stdev(ages, target_team_size)
+
     collective_new = len(
         [x for x in people_in_cohort if x.collective == Collective.new]
     )
@@ -46,7 +85,7 @@ def collect_metrics(people: list[Person], cohort: str) -> Targets:
         collective_newish=collective_newish,
         collective_oldish=collective_oldish,
         collective_old=collective_old,
-        age_std=stdev(ages) if len(ages) > 1 else 0,
+        age_std=age_std,
         girl_count=girl_count,
     )
 
@@ -65,33 +104,12 @@ def collect_representatives(people: list[Person]) -> list[Person]:
     list[Person]
         Representative friends from unique cohorts to possibly cohort with a person.
     """
-    cohorts = list(set([x.cohort for x in people]))
-
     # find friend representatives
-    friend_representatives = []
-    for cohort in cohorts:
-        friend = next(iter([x for x in people if x.cohort == cohort]), None)
-        if friend is None:
-            continue
-        friend_representatives.append(friend)
+    friend_representatives: list[Person] = []
+    for friend in people:
+        if friend.cohort not in [x.cohort for x in friend_representatives]:
+            friend_representatives.append(friend)
     return friend_representatives
-
-
-def copy_people(people: list[Person]) -> list[Person]:
-    """
-    Copies people to a new list.
-
-    Parameters
-    ----------
-    people
-        All people to place on teams.
-
-    Returns
-    -------
-    list[Person]
-        Copied people.
-    """
-    return [Person(**x.model_dump()) for x in people]
 
 
 def find_friends(
@@ -99,6 +117,7 @@ def find_friends(
     people: list[Person],
     possible_friends: list[Person] | None = None,
     preferred: bool = True,
+    all_people: bool = False,
 ) -> list[Person]:
     """
     Finds friends for a person based on preferences.
@@ -113,6 +132,10 @@ def find_friends(
         All people to assign to teams.
     possible_friends
         Possible friends to be on a team with a person.
+    preferred
+        Flag to consider only people preferred by person.
+    all_people
+        Flag to consider all people or just representatives.
 
     Returns
     -------
@@ -136,6 +159,8 @@ def find_friends(
             ]
         )
     ]
+    if all_people:
+        return friends
     return collect_representatives(friends)
 
 
@@ -172,84 +197,55 @@ def find_friends_strict(
     possible_friends = [x for x in possible_friends if x.cohort != person.cohort]
     friends = collect_representatives(possible_friends)
 
+    # collect leaders of teams in use
+    leaders = collect_representatives([x for x in people if x.team != ""])
+
     # check for validity based on targets and adding to leader cohorts
     friends_strict: list[Person] = []
     for friend in friends:
-        # cohorts must not be modified from searching for new friends
-        pretend_people = copy_people(people)
-
-        # a pretend person and friend are not needed to join cohorts
-        pretend_people = join_cohorts(person.cohort, friend.cohort, pretend_people)
-        pretend_person = next(
-            iter([x for x in pretend_people if x.index == person.index]), None
-        )
-        if pretend_person is None:
-            continue
-
-        # values on each target after joining cohorts
-        pretend_metrics = collect_metrics(pretend_people, pretend_person.cohort)
-
-        # collect cohorts of leaders - same as team names in use
-        pretend_leader_cohorts = list(
-            set([x.cohort for x in pretend_people if x.team != ""])
+        metrics = collect_metrics(
+            people,
+            [person.cohort, friend.cohort],
+            adjust_age=True,
+            target_team_size=targets.team_size,
         )
 
         # team must meet targets
-        # standard deviation is difficult to work with at low team sizes
-        # best to ignore it when screening
-        # it is applied when selecting the best of many options in a later step
-        if pretend_person.team != "" or len(pretend_leader_cohorts) != team_count:
+        if person.team != "" or friend.team != "" or len(leaders) != team_count:
             if all(
                 [
-                    getattr(pretend_metrics, priority) <= getattr(targets, priority)
+                    getattr(metrics, priority) <= getattr(targets, priority)
                     for priority in PRIORITIES
-                    if priority != "age_std"
                 ]
             ):
                 friends_strict.append(friend)
             continue
 
         # cohort must add to a team while meeting targets
-        for pretend_cohort in pretend_leader_cohorts:
-            # start over for each leader cohort possibility
-            new_pretend_people = copy_people(pretend_people)
+        people_in_cohort = [
+            x for x in people if x.cohort in [person.cohort, friend.cohort]
+        ]
+        for leader in leaders:
+            if any([x.index in leader.banned_people for x in people_in_cohort]):
+                continue
 
             # friend is valid if a leader cohort can be joined
-            new_pretend_people = join_cohorts(
-                pretend_person.cohort, pretend_cohort, new_pretend_people
+            metrics = collect_metrics(
+                people,
+                [person.cohort, friend.cohort, leader.cohort],
+                adjust_age=True,
+                target_team_size=targets.team_size,
             )
-            new_pretend_metrics = collect_metrics(
-                new_pretend_people, pretend_person.cohort
-            )
+
             if all(
                 [
-                    getattr(new_pretend_metrics, priority) <= getattr(targets, priority)
+                    getattr(metrics, priority) <= getattr(targets, priority)
                     for priority in PRIORITIES
                 ]
             ):
                 friends_strict.append(friend)
                 break
     return friends_strict
-
-    # may need to add back in later - test cases will have to decide
-    other_cohorts = [x for x in cohorts if x != self and x != test_cohort]
-    for priority in PRIORITIES:
-        valid = getattr(pretend_metrics, priority) <= getattr(targets, priority)
-        min_value = getattr(min(other_cohorts, key=attrgetter(priority)), priority)
-        if valid:
-            other_cohorts = [
-                x
-                for x in other_cohorts
-                if getattr(x, priority)
-                <= getattr(targets, priority) - getattr(self, priority)
-            ]
-        else:
-            other_cohorts = [
-                x for x in other_cohorts if getattr(x, priority) == min_value
-            ]
-        if not valid and getattr(test_cohort, priority) != min_value:
-            return False
-    return True
 
 
 def find_new_people(people: list[Person]) -> list[Person]:
@@ -267,7 +263,7 @@ def find_new_people(people: list[Person]) -> list[Person]:
     list[Person]
         People who are not matched with any of their preferences.
     """
-    return [
+    new_people = [
         x
         for x in people
         if x.firstTime == BooleanEnum.yes
@@ -279,6 +275,8 @@ def find_new_people(people: list[Person]) -> list[Person]:
             ]
         )
     ]
+    new_people.sort(key=lambda x: x.order)
+    return new_people
 
 
 def find_new_people_complete(people: list[Person]) -> list[Person]:
@@ -295,7 +293,7 @@ def find_new_people_complete(people: list[Person]) -> list[Person]:
     list[Person]
         New people with further preferences to meet.
     """
-    return [
+    new_people = [
         x
         for x in people
         if x.firstTime == BooleanEnum.yes
@@ -308,6 +306,8 @@ def find_new_people_complete(people: list[Person]) -> list[Person]:
             ]
         )
     ]
+    new_people.sort(key=lambda x: x.order)
+    return new_people
 
 
 def join_cohorts(cohort_1: str, cohort_2: str, people: list[Person]) -> list[Person]:

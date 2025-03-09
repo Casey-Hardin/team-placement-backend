@@ -66,12 +66,12 @@ def complete_teams(
             if getattr(collect_metrics(people, x.cohort), priority) < max_value
         ]
         if len(valid_leaders) == 0:
-            break
+            continue
 
         # find the best leader for the person
         friend = prioritized_friend(person, valid_leaders, people, targets, team_count)
         if friend is None:
-            break
+            continue
 
         # combine person and their friend's cohorts
         people = join_cohorts(person.cohort, friend.cohort, people)
@@ -80,7 +80,7 @@ def complete_teams(
     remaining_representatives = [x for x in people if x.team == ""]
     for person in remaining_representatives:
         # find the best leader for the person
-        friend = prioritized_friend(person, valid_leaders, people, targets, team_count)
+        friend = prioritized_friend(person, leaders, people, targets, team_count)
         if friend is None:
             continue
 

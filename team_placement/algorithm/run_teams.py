@@ -53,45 +53,36 @@ def run_teams(
     # define targets per team
     targets = define_targets(people, teams)
 
-    print("assign leaders")
-
     # assign leaders to cohorts based on teams
+    print("assign leaders")
     people = assign_leaders(people, teams)
-
-    print("perform first pass")
 
     # assign new people with 0 or 1 preference to cohorts
     # restart whenever someone is added to a cohort to capture new information
+    print("perform first pass")
     people = first_pass(people)
 
     print("apply controls")
-
     people = apply_controls(people, controls)
-
-    print("perform second pass")
 
     # assign new people with 0 or 1 preference to cohorts while
     # respecting demographic targets and cohorts forming teams
     # restart whenever someone is added to a cohort to capture new information
+    print("perform second pass")
     people = second_pass(people, targets, len(teams))
 
-    print("perform second pass must assign")
-
     # assign new people with 2+ preferences
+    print("perform second pass must assign")
     people = second_pass(people, targets, len(teams), must_assign=True)
-
-    print("sift cohorts")
 
     # assign cohorts to cohorts with leaders having 0 or 1 possibilities
     # based on demographic targets
+    print("sift cohorts")
     people = sift_cohorts(people, targets, teams)
 
-    print("perform third pass")
-
     # place the rest of preferred people for each new person
+    print("perform third pass")
     people = third_pass(people, targets, teams, find_new_people_complete)
-
-    print(len(list(set([x.cohort for x in people]))))
 
     # place people by preferences in order of priorities
     order = [
@@ -101,7 +92,6 @@ def run_teams(
         Collective.old,
     ]
     for category in order:
-        print(len(list(set([x.cohort for x in people]))))
         people = third_pass(
             people,
             targets,
@@ -110,9 +100,8 @@ def run_teams(
         )
 
     # final assigns to all teams
+    print("complete teams")
     people = complete_teams(people, targets, len(teams))
-
-    print(list_cohorts(people))
 
     target_metrics = {priority: (getattr(targets, priority)) for priority in PRIORITIES}
     for k, v in target_metrics.items():

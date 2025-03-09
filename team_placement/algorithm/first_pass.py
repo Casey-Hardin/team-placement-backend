@@ -24,10 +24,6 @@ def first_pass(people: list[Person]) -> list[Person]:
         # find friends
         friends = find_friends(person, people)
 
-        # proceed if a friend is already matched
-        if any([x.cohort == person.cohort for x in friends]):
-            continue
-
         # take action when a new person has 0 or 1 possible preference
         match len(friends):
             case 0:

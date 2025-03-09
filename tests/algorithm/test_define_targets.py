@@ -104,6 +104,6 @@ def test_process():
         collective_newish=1,
         collective_oldish=1,
         collective_old=0,
-        age_std=2,
+        age_std=0,
         girl_count=2,
     )

@@ -1,3 +1,6 @@
+# native imports
+from statistics import stdev
+
 # external imports
 from team_placement.schemas import Collective, Gender, Person, Targets, Team
 
@@ -34,6 +37,6 @@ def define_targets(people: list[Person], teams: list[Team]) -> Targets:
         collective_newish=float(total_newish / total_teams),
         collective_oldish=float(total_oldish / total_teams),
         collective_old=float(total_old / total_teams),
-        age_std=2,
+        age_std=stdev([x.age for x in people]),
         girl_count=float(total_girls / total_teams),
     )

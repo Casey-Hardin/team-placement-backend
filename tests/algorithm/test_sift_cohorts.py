@@ -207,6 +207,7 @@ def test_neither_meets_targets():
     """
     Tests sifting cohorts when no leader cohort meets targets.
     Assigns the prioritized cohort.
+    Age is not what breaks targets, so the first cohort is assigned.
     """
     people = sift_cohorts(PEOPLE_1, TARGETS, TEAMS)
     cohorts = list(set([x.cohort for x in people]))
@@ -214,7 +215,7 @@ def test_neither_meets_targets():
     assert len(cohorts) == 7
     girl_4 = next(iter([x for x in people if x.index == "Girl 4"]), None)
     assert girl_4 is not None
-    assert girl_4.team == "Team B"
+    assert girl_4.team == "Team A"
 
 
 def test_one_meets_targets():

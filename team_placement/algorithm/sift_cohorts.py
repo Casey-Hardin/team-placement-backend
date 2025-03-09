@@ -48,21 +48,28 @@ def sift_cohorts(
 
         # collect leaders
         leaders = [x for x in people if x.team != ""]
+        leaders = collect_representatives(leaders)
+        leaders.sort(
+            key=lambda x: len([y for y in people if y.cohort == x.cohort]), reverse=True
+        )
 
         # determine if cohorts are sufficiently small to stop sifting
         gaurenteed = []
-        leader_cohorts = list(set([x.cohort for x in leaders]))
-        for cohort in leader_cohorts:
-            leader_metrics = collect_metrics(people, cohort)
+        for leader in leaders:
+            leader_metrics = collect_metrics(
+                people,
+                leader.cohort,
+                adjust_age=True,
+                target_team_size=targets.team_size,
+            )
             min_condition = min(
                 [
                     getattr(targets, priority) - getattr(leader_metrics, priority)
                     for priority in PRIORITIES
-                    if priority != "age_std"
                 ]
             )
-            if len([x for x in people if x.cohort == cohort]) < min_condition:
-                gaurenteed += cohort
+            if len([x for x in people if x.cohort == leader.cohort]) < min_condition:
+                gaurenteed += leader.cohort
 
         if len(gaurenteed) == 2:
             break
